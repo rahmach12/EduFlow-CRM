@@ -1,0 +1,36 @@
+{
+  "greeting": "Bonjour",
+  "dashboard": {
+    "title": "Tableau de Bord",
+    "actualites": "Actualités & Annonces",
+    "cards": {
+      "student_card": "Carte Étudiant",
+      "messages": "Messages",
+      "results": "Résultats",
+      "absences": "Absences",
+      "schedule": "Emploi du temps",
+      "my_group": "Mon Groupe",
+      "suggestions": "Suggestions",
+      "languages": "Langues",
+      "documents": "Documents",
+      "balance": "Mon Solde",
+      "surveys": "Enquêtes",
+      "epi_sup": "EPI Sup"
+    }
+  },
+  "nav": {
+    "home": "Accueil",
+    "notes": "Notes",
+    "absences": "Absences",
+    "schedule": "Emploi du temps",
+    "profile": "Profil",
+    "logout": "Déconnexion"
+  },
+  "messages": {
+    "no_news": "Aucune nouvelle annonce pour le moment.",
+    "new_notification": "Nouvelle Annonce",
+    "debug": "Informations de Débogage (Temporaire)",
+    "role": "Rôle",
+    "name": "Nom"
+  }
+}

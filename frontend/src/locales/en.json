@@ -1,0 +1,36 @@
+{
+  "greeting": "Hello",
+  "dashboard": {
+    "title": "Dashboard",
+    "actualites": "News & Announcements",
+    "cards": {
+      "student_card": "Student ID",
+      "messages": "Messages",
+      "results": "Results",
+      "absences": "Absences",
+      "schedule": "Schedule",
+      "my_group": "My Group",
+      "suggestions": "Suggestions",
+      "languages": "Languages",
+      "documents": "Documents",
+      "balance": "My Balance",
+      "surveys": "Surveys",
+      "epi_sup": "EPI Sup"
+    }
+  },
+  "nav": {
+    "home": "Home",
+    "notes": "Notes",
+    "absences": "Absences",
+    "schedule": "Schedule",
+    "profile": "Profile",
+    "logout": "Logout"
+  },
+  "messages": {
+    "no_news": "No new announcements at this time.",
+    "new_notification": "New Announcement",
+    "debug": "Debug Information (Temporary)",
+    "role": "Role",
+    "name": "Name"
+  }
+}
