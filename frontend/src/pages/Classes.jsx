@@ -8,14 +8,12 @@ const EMPTY_FORM = {
   name: '',
   code: '',
   academic_year: '2025-2026',
-  faculty_id: '',
   filiere_id: '',
   academic_level_id: '',
 };
 
 export const Classes = () => {
   const [classes, setClasses] = useState([]);
-  const [faculties, setFaculties] = useState([]);
   const [filieres, setFilieres] = useState([]);
   const [levels, setLevels] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -27,14 +25,12 @@ export const Classes = () => {
 
   const fetchData = async () => {
     try {
-      const [classesRes, facultiesRes, filieresRes, levelsRes] = await Promise.all([
+      const [classesRes, filieresRes, levelsRes] = await Promise.all([
         api.get('/classes'),
-        api.get('/faculties'),
         api.get('/filieres'),
         api.get('/academic-levels'),
       ]);
       setClasses(classesRes.data);
-      setFaculties(facultiesRes.data);
       setFilieres(filieresRes.data);
       setLevels(levelsRes.data);
     } catch {
@@ -54,18 +50,13 @@ export const Classes = () => {
       name: classe.name || '',
       code: classe.code || '',
       academic_year: classe.academic_year || '2025-2026',
-      faculty_id: classe.faculty_id || classe.faculty?.id || '',
       filiere_id: classe.filiere_id || classe.filiere?.id || '',
       academic_level_id: classe.academic_level_id || classe.academic_level?.id || classe.academicLevel?.id || '',
     } : EMPTY_FORM);
     setIsModalOpen(true);
   };
 
-  const filteredFilieres = useMemo(() => (
-    formData.faculty_id
-      ? filieres.filter((filiere) => `${filiere.faculty_id}` === `${formData.faculty_id}`)
-      : filieres
-  ), [filieres, formData.faculty_id]);
+
 
   const filteredClasses = useMemo(() => classes.filter((classe) => {
     const haystack = `${classe.name} ${classe.code || ''} ${classe.level || ''} ${classe.filiere?.name || ''} ${classe.academicLevel?.name || ''}`.toLowerCase();
@@ -120,8 +111,7 @@ export const Classes = () => {
         </button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <SummaryCard icon={Building2} title="Facultes" value={faculties.length} />
+      <div className="grid gap-4 md:grid-cols-2">
         <SummaryCard icon={Layers3} title="Filieres" value={filieres.length} />
         <SummaryCard icon={GraduationCap} title="Classes actives" value={classes.length} />
       </div>
@@ -143,7 +133,7 @@ export const Classes = () => {
           <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-700">
             <thead className="bg-slate-50 dark:bg-slate-900/50">
               <tr>
-                {['Classe', 'Faculte', 'Filiere', 'Niveau', 'Annee', 'Etudiants', 'Actions'].map((title) => (
+                {['Classe', 'Filiere', 'Niveau', 'Annee', 'Etudiants', 'Actions'].map((title) => (
                   <th key={title} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                     {title}
                   </th>
@@ -161,7 +151,6 @@ export const Classes = () => {
                     <p className="text-sm font-semibold text-slate-800 dark:text-white">{classe.name}</p>
                     <p className="text-xs text-slate-400">{classe.code || 'Sans code'}</p>
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">{classe.faculty?.name || '—'}</td>
                   <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">{classe.filiere?.name || '—'}</td>
                   <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">{classe.academicLevel?.name || classe.level || '—'}</td>
                   <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">{classe.academic_year || '—'}</td>
@@ -193,16 +182,10 @@ export const Classes = () => {
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Faculte">
-              <select value={formData.faculty_id} onChange={(event) => setFormData({ ...formData, faculty_id: event.target.value, filiere_id: '' })} className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white">
-                <option value="">Selectionner...</option>
-                {faculties.map((faculty) => <option key={faculty.id} value={faculty.id}>{faculty.name}</option>)}
-              </select>
-            </Field>
             <Field label="Filiere">
               <select value={formData.filiere_id} onChange={(event) => setFormData({ ...formData, filiere_id: event.target.value })} className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white">
                 <option value="">Selectionner...</option>
-                {filteredFilieres.map((filiere) => <option key={filiere.id} value={filiere.id}>{filiere.name}</option>)}
+                {filieres.map((filiere) => <option key={filiere.id} value={filiere.id}>{filiere.name}</option>)}
               </select>
             </Field>
           </div>

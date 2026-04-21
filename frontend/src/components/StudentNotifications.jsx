@@ -1,12 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell } from 'lucide-react';
-import { useNotifications } from '../contexts/NotificationContext';
-import { useTranslation } from 'react-i18next';
+import { useNotifications } from '../hooks/useNotifications';
 
 const StudentNotifications = () => {
   const { notifications, markAsRead } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
-  const { t } = useTranslation();
   const dropdownRef = useRef(null);
 
     const unreadCount = notifications.filter(n => !n.is_read).length;

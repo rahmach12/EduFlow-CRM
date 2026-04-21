@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { MessageSquare, Send, Search, Clock, User, CheckCheck } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState } from 'react';
+import { MessageSquare, Send, Search, Clock, CheckCheck } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 // Mock data for Messages — backend integration-ready
 const MOCK_MESSAGES = [

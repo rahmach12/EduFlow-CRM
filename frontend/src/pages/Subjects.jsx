@@ -24,7 +24,7 @@ export const Subjects = () => {
     try {
       const res = await api.get('/subjects');
       setSubjects(res.data);
-    } catch (error) {
+    } catch {
       toast.error("Failed to load subjects.");
     } finally {
       setLoading(false);
@@ -82,7 +82,7 @@ export const Subjects = () => {
         await api.delete(`/subjects/${id}`);
         toast.success("Subject deleted successfully!");
         fetchSubjects();
-      } catch (error) {
+      } catch {
         toast.error("Delete failed.");
       }
     }

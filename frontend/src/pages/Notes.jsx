@@ -5,7 +5,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { SkeletonTable } from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 import * as XLSX from 'xlsx';
@@ -22,7 +22,7 @@ const StudentNotesView = ({ user }) => {
         if (!studentId) return;
         const res = await api.get(`/students/${studentId}/average`);
         setData(res.data);
-      } catch (e) {
+      } catch {
         toast.error('Failed to load grades.');
       } finally {
         setLoading(false);
@@ -97,7 +97,6 @@ const StudentNotesView = ({ user }) => {
     </div>
   );
 
-  const avgColor = data.general_average >= 15 ? 'text-emerald-600' : data.general_average >= 10 ? 'text-amber-500' : 'text-red-500';
   const avgBg = data.general_average >= 15 ? 'from-emerald-500 to-teal-600' : data.general_average >= 10 ? 'from-amber-500 to-orange-600' : 'from-red-500 to-rose-600';
 
   return (

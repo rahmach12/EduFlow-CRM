@@ -1,8 +1,9 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth } from './hooks/useAuth';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import DashboardLayout from './layouts/DashboardLayout';
 import StudentLayout from './layouts/StudentLayout';
 import TeacherLayout from './layouts/TeacherLayout';
@@ -11,6 +12,7 @@ import Dashboard from './pages/Dashboard';
 
 import Students from './pages/Students';
 import Teachers from './pages/Teachers';
+import Filieres from './pages/Filieres';
 import { Classes } from './pages/Classes';
 import { Subjects } from './pages/Subjects';
 import { Notes } from './pages/Notes';
@@ -56,6 +58,7 @@ function App() {
       <Toaster position="top-right" toastOptions={{ style: { borderRadius: '12px', background: '#1e1b4b', color: '#fff' } }} />
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         
         <Route path="/" element={
           <ProtectedRoute>
@@ -67,6 +70,7 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="students" element={<Students />} />
           <Route path="teachers" element={<Teachers />} />
+          <Route path="filieres" element={<Filieres />} />
           <Route path="classes" element={<Classes />} />
           <Route path="subjects" element={<Subjects />} />
           <Route path="notes" element={<Notes />} />

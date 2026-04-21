@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FileText, Download, Search, Clock, CheckCircle, AlertCircle, BookOpen } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import api from '../lib/axios';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';

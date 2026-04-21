@@ -9,12 +9,7 @@ class Filiere extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['faculty_id', 'name', 'code'];
-
-    public function faculty()
-    {
-        return $this->belongsTo(Faculty::class);
-    }
+    protected $fillable = ['name', 'code'];
 
     public function classes()
     {

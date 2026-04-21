@@ -5,7 +5,6 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ClassController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\FacultyController;
 use App\Http\Controllers\FiliereController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\InternshipController;
@@ -28,7 +27,6 @@ Route::middleware('auth:api')->group(function () {
 
     Route::apiResource('students', StudentController::class);
     Route::apiResource('teachers', TeacherController::class);
-    Route::apiResource('faculties', FacultyController::class);
     Route::apiResource('filieres', FiliereController::class);
     Route::apiResource('academic-levels', AcademicLevelController::class);
     Route::apiResource('classes', ClassController::class);

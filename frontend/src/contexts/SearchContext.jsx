@@ -1,8 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../lib/axios';
-import { useAuth } from './AuthContext';
-
-const SearchContext = createContext(null);
+import { useAuth } from '../hooks/useAuth';
+import { SearchContext } from './SearchContextObject';
 
 /**
  * SearchProvider — pre-fetches and caches searchable data for global search.
@@ -98,5 +97,3 @@ export const SearchProvider = ({ children }) => {
     </SearchContext.Provider>
   );
 };
-
-export const useSearch = () => useContext(SearchContext);

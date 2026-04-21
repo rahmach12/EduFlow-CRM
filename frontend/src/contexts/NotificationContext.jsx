@@ -1,33 +1,33 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import api from '../lib/axios';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 import toast from 'react-hot-toast';
+import { NotificationContext } from './NotificationContextObject';
 
 window.Pusher = Pusher;
 
-const NotificationContext = createContext(null);
-
-// Optional: you can store echo in state if you want to use it elsewhere, but we'll configure it globally
 let echoInstance = null;
 
 export const NotificationProvider = ({ children }) => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!user) return;
     try {
       const res = await api.get('/notifications');
       setNotifications(res.data);
-    } catch (e) {
+    } catch {
       console.error("Failed to fetch notifications");
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    fetchNotifications();
+    const timer = setTimeout(() => {
+      void fetchNotifications();
+    }, 0);
 
     if (user && !echoInstance) {
       echoInstance = new Echo({
@@ -63,17 +63,20 @@ export const NotificationProvider = ({ children }) => {
       });
 
       return () => {
+        clearTimeout(timer);
         echoInstance.leave(channelName);
         echoInstance.leave(roleChannelName);
       };
     }
-  }, [user]);
+
+    return () => clearTimeout(timer);
+  }, [fetchNotifications, user]);
 
   const markAsRead = async (id) => {
     try {
       await api.put(`/notifications/${id}/read`);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
-    } catch (e) {
+    } catch {
       console.error("Failed to mark as read");
     }
   };
@@ -84,5 +87,3 @@ export const NotificationProvider = ({ children }) => {
     </NotificationContext.Provider>
   );
 };
-
-export const useNotifications = () => useContext(NotificationContext);

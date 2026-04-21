@@ -14,7 +14,7 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
-        $request->validate([
+        $rules = [
             'first_name' => 'required|string',
             'last_name' => 'required|string',
             'email' => 'required|email|unique:users',
@@ -22,7 +22,18 @@ class AuthController extends Controller
             'role' => 'required|in:student,teacher',
             'cin' => 'required|string|unique:users,cin',
             'gender' => 'nullable|in:Male,Female',
-        ]);
+            'date_of_birth' => 'required|date',
+            'phone' => 'nullable|string',
+            'address' => 'nullable|string',
+        ];
+
+        if ($request->role === 'student') {
+            $rules['class_id'] = 'required|exists:classes,id';
+        } else {
+            $rules['subject_id'] = 'nullable|exists:subjects,id';
+        }
+
+        $request->validate($rules);
 
         $roleName = $request->role === 'teacher' ? 'Teacher' : 'Student';
         $role = Role::firstOrCreate(['name' => $roleName]);

@@ -4,7 +4,7 @@ import { Plus, Check, Search, CalendarOff, AlertTriangle, CheckCircle, Clock } f
 import classNames from 'classnames';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { SkeletonCard2 } from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 

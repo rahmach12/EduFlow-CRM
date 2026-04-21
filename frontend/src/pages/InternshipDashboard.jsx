@@ -10,7 +10,7 @@ import { SkeletonCardGrid, SkeletonTable } from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 
 // ── Stat Card ─────────────────────────────────────────────────────────────────
-const Stat = ({ label, value, icon: Icon, color }) => (
+const Stat = ({ label, value, icon, color }) => (
   <div className={`rounded-2xl p-5 text-white shadow-lg bg-gradient-to-br ${color}`}>
     <div className="flex items-center justify-between">
       <div>
@@ -18,7 +18,7 @@ const Stat = ({ label, value, icon: Icon, color }) => (
         <p className="text-3xl font-extrabold mt-1">{value ?? '—'}</p>
       </div>
       <div className="bg-white/20 rounded-xl p-3">
-        <Icon className="h-6 w-6" />
+        {React.createElement(icon, { className: 'h-6 w-6' })}
       </div>
     </div>
   </div>
@@ -28,21 +28,41 @@ const InternshipDashboard = () => {
   const [stats, setStats]             = useState(null);
   const [internships, setInternships] = useState([]);
   const [loading, setLoading]         = useState(true);
+  // Filters state
   const [searchTerm, setSearchTerm]   = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterFiliere, setFilterFiliere] = useState('all');
+  const [filterClass, setFilterClass] = useState('all');
+
+  // Rejection modal
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   // Schedule defense modal
   const [modalOpen, setModalOpen]         = useState(false);
   const [selected, setSelected]           = useState(null);
   const [defenseDate, setDefenseDate]     = useState('');
+  const [defenseJury, setDefenseJury]     = useState('');
+  const [defenseRoom, setDefenseRoom]     = useState('');
   const [isSubmitting, setIsSubmitting]   = useState(false);
+
+  // Filters state
+  const [filieres, setFilieres] = useState([]);
+  const [classes, setClasses] = useState([]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [statsRes, internRes] = await Promise.all([
+      const [statsRes, internRes, filieresRes, classesRes] = await Promise.all([
         api.get('/dashboard/internships'),
         api.get('/internships'),
+        api.get('/filieres'),
+        api.get('/classes')
+      ]);
+      setStats(statsRes.data);
+      setInternships(internRes.data);
+      setFilieres(filieresRes.data);
+      setClasses(classesRes.data);
       ]);
       setStats(statsRes.data);
       setInternships(internRes.data);
@@ -55,17 +75,31 @@ const InternshipDashboard = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  const handleStatus = async (id, status) => {
+  const handleStatus = async (id, status, reason = null) => {
     try {
-      await api.post(`/internships/${id}/status`, { status });
+      await api.post(`/internships/${id}/status`, { status, rejection_reason: reason });
       toast.success(`Stage ${status === 'Approved' ? 'approuvé' : 'rejeté'}`);
+      if (status === 'Rejected') setRejectModalOpen(false);
       fetchData();
     } catch { toast.error('Erreur lors de la mise à jour'); }
+  };
+
+  const confirmRejection = (e) => {
+    e.preventDefault();
+    handleStatus(selected.id, 'Rejected', rejectionReason);
+  };
+
+  const openRejectModal = (intern) => {
+    setSelected(intern);
+    setRejectionReason('');
+    setRejectModalOpen(true);
   };
 
   const openDefenseModal = (intern) => {
     setSelected(intern);
     setDefenseDate(intern.defense_date || '');
+    setDefenseJury(intern.defense_jury || '');
+    setDefenseRoom(intern.defense_room || '');
     setModalOpen(true);
   };
 
@@ -73,7 +107,11 @@ const InternshipDashboard = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await api.put(`/internships/${selected.id}`, { defense_date: defenseDate });
+      await api.post(`/internships/${selected.id}/defense`, { 
+        defense_date: defenseDate,
+        defense_jury: defenseJury,
+        defense_room: defenseRoom
+      });
       toast.success('Date de soutenance planifiée !');
       setModalOpen(false);
       fetchData();
@@ -92,8 +130,18 @@ const InternshipDashboard = () => {
     const matchSearch = getStudentName(i).toLowerCase().includes(searchTerm.toLowerCase()) ||
       (i.company_name || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchStatus = filterStatus === 'all' || i.status === filterStatus;
-    return matchSearch && matchStatus;
+    
+    // Class/Filiere filtering
+    const studentClassId = i.student?.class_id || i.student?.classe?.id;
+    const studentFiliereId = i.student?.classe?.filiere_id;
+    
+    const matchFiliere = filterFiliere === 'all' || String(studentFiliereId) === String(filterFiliere);
+    const matchClass = filterClass === 'all' || String(studentClassId) === String(filterClass);
+
+    return matchSearch && matchStatus && matchFiliere && matchClass;
   });
+
+  const availableClasses = classes.filter(c => filterFiliere === 'all' || String(c.filiere_id) === String(filterFiliere));
 
   return (
     <div className="space-y-6">
@@ -116,8 +164,8 @@ const InternshipDashboard = () => {
       {/* Table */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
         {/* Toolbar */}
-        <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
+        <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row flex-wrap gap-3">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
@@ -128,14 +176,30 @@ const InternshipDashboard = () => {
             />
           </div>
           <select
+            value={filterFiliere}
+            onChange={e => { setFilterFiliere(e.target.value); setFilterClass('all'); }}
+            className="px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-700 text-sm text-slate-900 dark:text-white"
+          >
+             <option value="all">Toutes les Filières</option>
+             {filieres.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+          <select
+            value={filterClass}
+            onChange={e => setFilterClass(e.target.value)}
+            className="px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-700 text-sm text-slate-900 dark:text-white"
+          >
+             <option value="all">Toutes les Classes</option>
+             {availableClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select
             value={filterStatus}
             onChange={e => setFilterStatus(e.target.value)}
             className="px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-700 text-sm text-slate-900 dark:text-white"
           >
-            <option value="all">Tous les statuts</option>
-            <option value="Pending">En attente</option>
-            <option value="Approved">Approuvés</option>
-            <option value="Rejected">Rejetés</option>
+             <option value="all">Tous les statuts</option>
+             <option value="Pending">En attente</option>
+             <option value="Approved">Approuvés</option>
+             <option value="Rejected">Rejetés</option>
           </select>
         </div>
 
@@ -189,7 +253,7 @@ const InternshipDashboard = () => {
                         <button onClick={() => handleStatus(intern.id, 'Approved')} className="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 transition" title="Approuver">
                           <CheckCircle className="h-4 w-4" />
                         </button>
-                        <button onClick={() => handleStatus(intern.id, 'Rejected')} className="p-1.5 bg-rose-100 text-rose-600 rounded-lg hover:bg-rose-200 transition" title="Rejeter">
+                        <button onClick={() => openRejectModal(intern)} className="p-1.5 bg-rose-100 text-rose-600 rounded-lg hover:bg-rose-200 transition" title="Rejeter">
                           <XCircle className="h-4 w-4" />
                         </button>
                       </>}
@@ -207,18 +271,45 @@ const InternshipDashboard = () => {
         </div>
       </div>
 
-      {/* Defense Date Modal */}
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Planifier la Soutenance">
+      {/* Defense Modal */}
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Soutenance">
         <form onSubmit={scheduleDefense} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date de Soutenance *</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date *</label>
             <input required type="date" value={defenseDate} onChange={e => setDefenseDate(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Jury *</label>
+            <input required type="text" value={defenseJury} onChange={e => setDefenseJury(e.target.value)} placeholder="Mme X, Mr Y"
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Salle *</label>
+            <input required type="text" value={defenseRoom} onChange={e => setDefenseRoom(e.target.value)} placeholder="Amphi 1"
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white" />
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-xl text-slate-600 dark:text-slate-300">Annuler</button>
             <button type="submit" disabled={isSubmitting} className="px-5 py-2 text-sm bg-primary text-white rounded-xl hover:bg-primary/90 disabled:opacity-50">
               {isSubmitting ? 'Enregistrement...' : 'Confirmer'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Rejection Modal */}
+      <Modal isOpen={rejectModalOpen} onClose={() => setRejectModalOpen(false)} title="Motif de Rejet">
+        <form onSubmit={confirmRejection} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Motif du rejet obligatiore</label>
+            <textarea required value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} rows="3"
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white" placeholder="Le sujet ne correspond pas à la filière..." />
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setRejectModalOpen(false)} className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-xl text-slate-600 dark:text-slate-300">Annuler</button>
+            <button type="submit" disabled={isSubmitting} className="px-5 py-2 text-sm bg-rose-500 text-white rounded-xl hover:bg-rose-600 disabled:opacity-50">
+              Soumettre Rejet
             </button>
           </div>
         </form>

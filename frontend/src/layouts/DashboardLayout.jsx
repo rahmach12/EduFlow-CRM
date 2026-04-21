@@ -1,76 +1,117 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useNotifications } from '../contexts/NotificationContext';
-import { 
-  Users, UserCheck, BookOpen, GraduationCap, 
-  LayoutDashboard, FileText, CalendarOff, DollarSign,
-  LogOut, School, Menu, X, Bell, Briefcase, Search,
-  User, ChevronDown
+import React, { useEffect, useState } from 'react';
+import { Link, Outlet, useLocation } from 'react-router-dom';
+import {
+  Bell,
+  BookOpen,
+  Briefcase,
+  CalendarOff,
+  ChevronDown,
+  DollarSign,
+  FileText,
+  GraduationCap,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  School,
+  Layers3,
+  Search,
+  User,
+  UserCheck,
+  Users,
+  X,
 } from 'lucide-react';
 import classNames from 'classnames';
 import GlobalSearch from '../components/GlobalSearch';
 import { SearchProvider } from '../contexts/SearchContext';
+import { useAuth } from '../hooks/useAuth';
+import { useNotifications } from '../hooks/useNotifications';
 
-// Academic year options (Phase 1 — localStorage-persisted frontend selector)
 const ACADEMIC_YEARS = ['2023-2024', '2024-2025', '2025-2026'];
+
+function NavItem({ item, isActive, onClick }) {
+  const Icon = item.icon;
+
+  return (
+    <Link
+      to={item.href}
+      onClick={onClick}
+      className={classNames(
+        isActive
+          ? 'border-r-4 border-primary bg-primary/10 font-semibold text-primary'
+          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white',
+        'group flex items-center rounded-l-lg px-4 py-3 text-sm transition-all duration-150'
+      )}
+    >
+      <Icon
+        className={classNames(
+          isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-500',
+          'mr-3 h-5 w-5 flex-shrink-0'
+        )}
+      />
+      {item.name}
+    </Link>
+  );
+}
 
 const DashboardLayoutInner = () => {
   const { user, logout } = useAuth();
+  const { notifications, markAsRead } = useNotifications();
   const location = useLocation();
-  const navigate = useNavigate();
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isYearOpen, setIsYearOpen] = useState(false);
-
-  const { notifications, markAsRead } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const [academicYear, setAcademicYear] = useState(() => localStorage.getItem('academic_year') || '2024-2025');
 
+  const unreadCount = notifications.filter((notification) => !notification.is_read).length;
   const role = user?.role?.name;
   const isAdmin = role === 'Admin' || role === 'Administration';
 
-  // Academic year — persisted in localStorage
-  const [academicYear, setAcademicYear] = useState(() =>
-    localStorage.getItem('academic_year') || '2024-2025'
-  );
-  const selectYear = (yr) => {
-    setAcademicYear(yr);
-    localStorage.setItem('academic_year', yr);
-    setIsYearOpen(false);
-  };
-
-  // Ctrl+K global shortcut
   useEffect(() => {
-    const handler = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        if (isAdmin) setIsSearchOpen(o => !o);
+    const handler = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+        event.preventDefault();
+        if (isAdmin) setIsSearchOpen((open) => !open);
       }
-      if (e.key === 'Escape') setIsSearchOpen(false);
+
+      if (event.key === 'Escape') {
+        setIsSearchOpen(false);
+      }
     };
+
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [isAdmin]);
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
-    const handler = () => { setShowNotifications(false); setIsYearOpen(false); };
+    const handler = () => {
+      setShowNotifications(false);
+      setIsYearOpen(false);
+    };
+
     document.addEventListener('click', handler);
     return () => document.removeEventListener('click', handler);
   }, []);
 
+  const selectYear = (year) => {
+    setAcademicYear(year);
+    localStorage.setItem('academic_year', year);
+    setIsYearOpen(false);
+  };
+
   const getNavigation = () => {
-    switch(role) {
+    switch (role) {
       case 'Admin':
       case 'Administration':
         return [
           { name: 'Dashboard', href: '/', icon: LayoutDashboard },
           { name: 'Utilisateurs', href: '/users', icon: Users },
-          { name: 'Étudiants', href: '/students', icon: Users },
+          { name: 'Etudiants', href: '/students', icon: Users },
           { name: 'Enseignants', href: '/teachers', icon: UserCheck },
+          { name: 'Filières', href: '/filieres', icon: Layers3 },
           { name: 'Classes', href: '/classes', icon: School },
-          { name: 'Matières', href: '/subjects', icon: BookOpen },
+          { name: 'Matieres', href: '/subjects', icon: BookOpen },
           { name: 'Notes', href: '/notes', icon: FileText },
           { name: 'Absences', href: '/attendance', icon: CalendarOff },
           { name: 'Finance', href: '/finance', icon: DollarSign },
@@ -90,7 +131,7 @@ const DashboardLayoutInner = () => {
       case 'Scolarite':
         return [
           { name: 'Tableau de Bord', href: '/scolarite', icon: LayoutDashboard },
-          { name: 'Étudiants', href: '/students', icon: Users },
+          { name: 'Etudiants', href: '/students', icon: Users },
           { name: 'Absences', href: '/attendance', icon: CalendarOff },
           { name: 'Notes', href: '/notes', icon: FileText },
         ];
@@ -98,7 +139,7 @@ const DashboardLayoutInner = () => {
         return [
           { name: 'Dashboard', href: '/', icon: LayoutDashboard },
           { name: 'Mes Classes', href: '/classes', icon: School },
-          { name: 'Étudiants', href: '/students', icon: Users },
+          { name: 'Etudiants', href: '/students', icon: Users },
           { name: 'Notes', href: '/notes', icon: FileText },
           { name: 'Absences', href: '/attendance', icon: CalendarOff },
         ];
@@ -107,7 +148,7 @@ const DashboardLayoutInner = () => {
           { name: 'Dashboard', href: '/', icon: LayoutDashboard },
           { name: 'Mes Notes', href: '/notes', icon: FileText },
           { name: 'Mes Absences', href: '/attendance', icon: CalendarOff },
-          { name: 'Mon Emploi du temps', href: '/classes', icon: School },
+          { name: 'Mon Emploi du Temps', href: '/classes', icon: School },
           { name: 'Stages', href: '/internships', icon: Briefcase },
           { name: 'Finance', href: '/finance', icon: DollarSign },
           { name: 'Documents', href: '/documents', icon: FileText },
@@ -116,117 +157,94 @@ const DashboardLayoutInner = () => {
   };
 
   const navigation = getNavigation();
-
-  const NavItem = ({ item }) => {
-    const isActive = location.pathname === item.href || (item.href !== '/' && location.pathname.startsWith(item.href));
-    const Icon = item.icon;
-    return (
-      <Link
-        to={item.href}
-        onClick={() => setIsMobileMenuOpen(false)}
-        className={classNames(
-          isActive
-            ? 'bg-primary/10 text-primary border-r-4 border-primary font-semibold'
-            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white',
-          'group flex items-center px-4 py-3 text-sm transition-all duration-150 rounded-l-lg'
-        )}
-      >
-        <Icon className={classNames(isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-500', 'mr-3 h-5 w-5 flex-shrink-0')} />
-        {item.name}
-      </Link>
-    );
-  };
-
-  const pageTitle = location.pathname === '/'
-    ? 'Dashboard'
-    : location.pathname.substring(1).charAt(0).toUpperCase() + location.pathname.substring(2);
+  const pageTitle = location.pathname === '/' ? 'Dashboard' : location.pathname.slice(1).replace('-', ' ');
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex">
-      {/* ── Sidebar Desktop ── */}
-      <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 shadow-sm">
-        {/* Logo */}
-        <div className="flex items-center justify-center h-16 px-4 bg-gradient-to-r from-primary to-violet-700 text-white">
-          <GraduationCap className="h-7 w-7 mr-2 flex-shrink-0" />
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
+      <div className="fixed inset-y-0 hidden w-64 flex-col border-r border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 md:flex">
+        <div className="flex h-16 items-center justify-center bg-gradient-to-r from-primary to-violet-700 px-4 text-white">
+          <GraduationCap className="mr-2 h-7 w-7 flex-shrink-0" />
           <span className="text-xl font-extrabold tracking-wider">EduFlow</span>
         </div>
 
-        {/* Academic Year Badge */}
-        <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center justify-between bg-primary/5 dark:bg-primary/10 rounded-xl px-3 py-2">
-            <span className="text-xs font-semibold text-primary">Année Académique</span>
-            <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{academicYear}</span>
+        <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+          <div className="flex items-center justify-between rounded-xl bg-primary/5 px-3 py-2 dark:bg-primary/10">
+            <span className="text-xs font-semibold text-primary">Annee Academique</span>
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">{academicYear}</span>
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col overflow-y-auto pt-4 pb-4">
-          <div className="px-4 mb-3">
-            <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Navigation</p>
+        <div className="flex flex-1 flex-col overflow-y-auto pb-4 pt-4">
+          <div className="mb-3 px-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Navigation</p>
           </div>
           <nav className="flex-1 space-y-0.5 pr-2">
-            {navigation.map((item) => <NavItem key={item.name} item={item} />)}
+            {navigation.map((item) => (
+              <NavItem
+                key={item.name}
+                item={item}
+                isActive={location.pathname === item.href || (item.href !== '/' && location.pathname.startsWith(item.href))}
+                onClick={() => setIsMobileMenuOpen(false)}
+              />
+            ))}
           </nav>
         </div>
 
-        {/* User section */}
-        <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-800 p-4 space-y-3">
-          <Link to="/profile" className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group">
-            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-violet-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+        <div className="space-y-3 border-t border-slate-200 p-4 dark:border-slate-800">
+          <Link to="/profile" className="group flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800">
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-violet-700 text-sm font-bold text-white">
               {user?.first_name?.charAt(0) || 'U'}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">{user?.first_name} {user?.last_name}</p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{user?.role?.name}</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{user?.first_name} {user?.last_name}</p>
+              <p className="truncate text-xs text-slate-400 dark:text-slate-500">{user?.role?.name}</p>
             </div>
-            <User className="h-4 w-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+            <User className="h-4 w-4 flex-shrink-0 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100" />
           </Link>
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-colors"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/10"
           >
             <LogOut className="h-4 w-4" />
-            Déconnexion
+            Deconnexion
           </button>
         </div>
       </div>
 
-      {/* ── Main Content ── */}
-      <div className="flex-1 md:ml-64 flex flex-col min-w-0">
-        {/* Top Navbar */}
-        <div className="sticky top-0 z-10 flex-shrink-0 flex h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="flex min-w-0 flex-1 flex-col md:ml-64">
+        <div className="sticky top-0 z-10 flex h-16 flex-shrink-0 border-b border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <button
-            className="px-4 border-r border-slate-200 dark:border-slate-800 md:hidden text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+            className="border-r border-slate-200 px-4 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 dark:border-slate-800 md:hidden"
             onClick={() => setIsMobileMenuOpen(true)}
           >
             <Menu className="h-5 w-5" />
           </button>
 
-          <div className="flex-1 px-4 flex justify-between items-center gap-4">
-            <h1 className="text-lg font-bold text-slate-800 dark:text-white capitalize hidden sm:block">
-              {pageTitle}
-            </h1>
+          <div className="flex flex-1 items-center justify-between gap-4 px-4">
+            <h1 className="hidden capitalize text-lg font-bold text-slate-800 dark:text-white sm:block">{pageTitle}</h1>
 
-            <div className="flex items-center gap-2 ml-auto">
-              {/* Global Search (Admin only) */}
+            <div className="ml-auto flex items-center gap-2">
               {isAdmin && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); setIsSearchOpen(true); }}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-primary/40 transition-all group"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setIsSearchOpen(true);
+                  }}
+                  className="group flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-400 transition-all hover:border-primary/40 hover:text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:hover:text-slate-200"
                   title="Search (Ctrl+K)"
                 >
                   <Search className="h-4 w-4 group-hover:text-primary" />
-                  <span className="hidden sm:block text-xs">Recherche...</span>
-                  <kbd className="hidden sm:flex items-center gap-0.5 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-1.5 py-0.5 rounded">
+                  <span className="hidden text-xs sm:block">Recherche...</span>
+                  <kbd className="hidden items-center gap-0.5 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-xs dark:border-slate-600 dark:bg-slate-700 sm:flex">
                     Ctrl K
                   </kbd>
                 </button>
               )}
 
-              {/* Academic Year Selector */}
-              <div className="relative" onClick={e => e.stopPropagation()}>
+              <div className="relative" onClick={(event) => event.stopPropagation()}>
                 <button
-                  onClick={() => setIsYearOpen(o => !o)}
-                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-primary bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-xl hover:bg-primary/10 transition-all"
+                  onClick={() => setIsYearOpen((open) => !open)}
+                  className="flex items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-semibold text-primary transition-all hover:bg-primary/10 dark:bg-primary/10"
                 >
                   <span className="hidden sm:block">{academicYear}</span>
                   <span className="sm:hidden">A.Y.</span>
@@ -234,44 +252,43 @@ const DashboardLayoutInner = () => {
                 </button>
 
                 {isYearOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-40 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-20">
-                    {ACADEMIC_YEARS.map(yr => (
+                  <div className="absolute right-0 top-full z-20 mt-2 w-40 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                    {ACADEMIC_YEARS.map((year) => (
                       <button
-                        key={yr}
-                        onClick={() => selectYear(yr)}
-                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                          academicYear === yr
-                            ? 'bg-primary text-white font-semibold'
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                        key={year}
+                        onClick={() => selectYear(year)}
+                        className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${
+                          academicYear === year
+                            ? 'bg-primary font-semibold text-white'
+                            : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700'
                         }`}
                       >
-                        {yr}
+                        {year}
                       </button>
                     ))}
                   </div>
                 )}
               </div>
 
-              {/* Notifications Bell */}
-              <div className="relative" onClick={e => e.stopPropagation()}>
+              <div className="relative" onClick={(event) => event.stopPropagation()}>
                 <button
-                  onClick={() => setShowNotifications(o => !o)}
-                  className="relative p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  onClick={() => setShowNotifications((open) => !open)}
+                  className="relative rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                 >
                   <Bell className="h-5 w-5" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 h-4 w-4 flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full ring-2 ring-white dark:ring-slate-900">
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white ring-2 ring-white dark:ring-slate-900">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
                 </button>
 
                 {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden z-20">
-                    <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <div className="absolute right-0 z-20 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+                    <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
                       <h3 className="text-sm font-bold text-slate-800 dark:text-white">Notifications</h3>
                       {unreadCount > 0 && (
-                        <span className="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 text-xs px-2 py-0.5 rounded-full font-bold">
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600 dark:bg-red-900/30 dark:text-red-400">
                           {unreadCount} Non lues
                         </span>
                       )}
@@ -279,24 +296,28 @@ const DashboardLayoutInner = () => {
                     <div className="max-h-72 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800">
                       {notifications.length === 0 ? (
                         <div className="py-10 text-center">
-                          <Bell className="h-8 w-8 text-slate-200 dark:text-slate-700 mx-auto mb-2" />
+                          <Bell className="mx-auto mb-2 h-8 w-8 text-slate-200 dark:text-slate-700" />
                           <p className="text-sm text-slate-400">Aucune notification</p>
                         </div>
                       ) : (
-                        notifications.map(n => (
+                        notifications.map((notification) => (
                           <div
-                            key={n.id}
-                            onClick={() => !n.is_read && markAsRead(n.id)}
-                            className={`px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer ${!n.is_read ? 'bg-primary/5 dark:bg-primary/10' : ''}`}
+                            key={notification.id}
+                            onClick={() => !notification.is_read && markAsRead(notification.id)}
+                            className={`cursor-pointer px-4 py-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 ${
+                              !notification.is_read ? 'bg-primary/5 dark:bg-primary/10' : ''
+                            }`}
                           >
                             <div className="flex items-start gap-2">
-                              {!n.is_read && <div className="h-2 w-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />}
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-xs ${!n.is_read ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-300'}`}>
-                                  {n.title}
+                              {!notification.is_read && <div className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-primary" />}
+                              <div className="min-w-0 flex-1">
+                                <p className={`text-xs ${!notification.is_read ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-300'}`}>
+                                  {notification.title}
                                 </p>
-                                <p className="text-xs text-slate-400 mt-0.5">{n.message}</p>
-                                <p className="text-xs text-primary mt-1">{new Date(n.created_at).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                                <p className="mt-0.5 text-xs text-slate-400">{notification.message}</p>
+                                <p className="mt-1 text-xs text-primary">
+                                  {new Date(notification.created_at).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                </p>
                               </div>
                             </div>
                           </div>
@@ -315,49 +336,60 @@ const DashboardLayoutInner = () => {
         </main>
       </div>
 
-      {/* ── Mobile Menu ── */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-40 flex md:hidden">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
-          <div className="relative flex flex-col max-w-xs w-full bg-white dark:bg-slate-900 shadow-xl">
-            <div className="absolute top-4 right-4">
-              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+          <div className="relative flex w-full max-w-xs flex-col bg-white shadow-xl dark:bg-slate-900">
+            <div className="absolute right-4 top-4">
+              <button onClick={() => setIsMobileMenuOpen(false)} className="rounded-xl bg-slate-100 p-2 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="h-16 flex items-center px-4 bg-gradient-to-r from-primary to-violet-700">
-              <GraduationCap className="h-7 w-7 text-white mr-2" />
-              <span className="text-xl font-extrabold text-white tracking-wider">EduFlow</span>
+            <div className="flex h-16 items-center bg-gradient-to-r from-primary to-violet-700 px-4">
+              <GraduationCap className="mr-2 h-7 w-7 text-white" />
+              <span className="text-xl font-extrabold tracking-wider text-white">EduFlow</span>
             </div>
-            <div className="flex-1 overflow-y-auto pt-4 pb-4">
-              <div className="px-4 mb-2">
-                <div className="bg-primary/5 rounded-xl px-3 py-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-primary">Année Académique</span>
+            <div className="flex-1 overflow-y-auto pb-4 pt-4">
+              <div className="mb-2 px-4">
+                <div className="flex items-center justify-between rounded-xl bg-primary/5 px-3 py-2">
+                  <span className="text-xs font-semibold text-primary">Annee Academique</span>
                   <span className="text-xs font-bold text-primary">{academicYear}</span>
                 </div>
               </div>
-              <nav className="mt-3 px-2 space-y-0.5">
-                {navigation.map((item) => <NavItem key={item.name} item={item} />)}
-                <NavItem item={{ name: 'Mon Profil', href: '/profile', icon: User }} />
+              <nav className="mt-3 space-y-0.5 px-2">
+                {navigation.map((item) => (
+                  <NavItem
+                    key={item.name}
+                    item={item}
+                    isActive={location.pathname === item.href || (item.href !== '/' && location.pathname.startsWith(item.href))}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  />
+                ))}
+                <NavItem
+                  item={{ name: 'Mon Profil', href: '/profile', icon: User }}
+                  isActive={location.pathname === '/profile'}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                />
               </nav>
             </div>
-            <div className="border-t border-slate-200 dark:border-slate-800 p-4">
-              <button onClick={logout} className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-colors">
+            <div className="border-t border-slate-200 p-4 dark:border-slate-800">
+              <button
+                onClick={logout}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-900/10"
+              >
                 <LogOut className="h-4 w-4" />
-                Déconnexion
+                Deconnexion
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Global Search Overlay ── */}
       <GlobalSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </div>
   );
 };
 
-// Wrap with SearchProvider so GlobalSearch has access to index
 const DashboardLayout = () => (
   <SearchProvider>
     <DashboardLayoutInner />

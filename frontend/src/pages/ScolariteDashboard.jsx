@@ -9,7 +9,7 @@ import { SkeletonCardGrid, SkeletonTable } from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 
 // ── Stat Card ─────────────────────────────────────────────────────────────────
-const Stat = ({ label, value, icon: Icon, color }) => (
+const Stat = ({ label, value, icon, color }) => (
   <div className={`rounded-2xl p-5 text-white shadow-lg bg-gradient-to-br ${color}`}>
     <div className="flex items-center justify-between">
       <div>
@@ -17,7 +17,7 @@ const Stat = ({ label, value, icon: Icon, color }) => (
         <p className="text-3xl font-extrabold mt-1">{value ?? '—'}</p>
       </div>
       <div className="bg-white/20 rounded-xl p-3">
-        <Icon className="h-6 w-6" />
+        {React.createElement(icon, { className: 'h-6 w-6' })}
       </div>
     </div>
   </div>

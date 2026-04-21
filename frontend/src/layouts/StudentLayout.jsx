@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { GraduationCap, LogOut, Sun, Moon, Globe, Home, FileText, CalendarOff, School, User } from 'lucide-react';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';

@@ -10,11 +10,7 @@ class ClassController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Classe::with(['faculty', 'filiere', 'academicLevel'])->withCount('students');
-
-        if ($request->filled('faculty_id')) {
-            $query->where('faculty_id', $request->integer('faculty_id'));
-        }
+        $query = Classe::with(['filiere', 'academicLevel'])->withCount('students');
 
         if ($request->filled('filiere_id')) {
             $query->where('filiere_id', $request->integer('filiere_id'));
@@ -34,7 +30,6 @@ class ClassController extends Controller
             'code' => 'nullable|string',
             'level' => 'nullable|string',
             'academic_year' => 'nullable|string',
-            'faculty_id' => 'nullable|exists:faculties,id',
             'filiere_id' => 'nullable|exists:filieres,id',
             'academic_level_id' => 'nullable|exists:academic_levels,id',
         ]);
@@ -44,7 +39,6 @@ class ClassController extends Controller
             'code',
             'level',
             'academic_year',
-            'faculty_id',
             'filiere_id',
             'academic_level_id',
         ]);
@@ -55,12 +49,12 @@ class ClassController extends Controller
 
         $classe = Classe::create($payload);
 
-        return response()->json($classe->load(['faculty', 'filiere', 'academicLevel']), 201);
+        return response()->json($classe->load(['filiere', 'academicLevel']), 201);
     }
 
     public function show(Classe $class)
     {
-        return response()->json($class->load(['faculty', 'filiere', 'academicLevel', 'students.user']));
+        return response()->json($class->load(['filiere', 'academicLevel', 'students.user']));
     }
 
     public function update(Request $request, Classe $class)
@@ -70,7 +64,6 @@ class ClassController extends Controller
             'code' => 'nullable|string',
             'level' => 'nullable|string',
             'academic_year' => 'nullable|string',
-            'faculty_id' => 'nullable|exists:faculties,id',
             'filiere_id' => 'nullable|exists:filieres,id',
             'academic_level_id' => 'nullable|exists:academic_levels,id',
         ]);
@@ -80,7 +73,6 @@ class ClassController extends Controller
             'code',
             'level',
             'academic_year',
-            'faculty_id',
             'filiere_id',
             'academic_level_id',
         ]);
@@ -91,7 +83,7 @@ class ClassController extends Controller
 
         $class->update($payload);
 
-        return response()->json($class->load(['faculty', 'filiere', 'academicLevel']));
+        return response()->json($class->load(['filiere', 'academicLevel']));
     }
 
     public function destroy(Classe $class)

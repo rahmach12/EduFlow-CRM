@@ -12,7 +12,6 @@ class Classe extends Model
     protected $table = 'classes';
 
     protected $fillable = [
-        'faculty_id',
         'filiere_id',
         'academic_level_id',
         'name',
@@ -20,11 +19,6 @@ class Classe extends Model
         'level',
         'academic_year',
     ];
-
-    public function faculty()
-    {
-        return $this->belongsTo(Faculty::class);
-    }
 
     public function filiere()
     {

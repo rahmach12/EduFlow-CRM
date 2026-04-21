@@ -9,13 +9,9 @@ class FiliereController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Filiere::with(['faculty', 'classes.academicLevel'])
+        $query = Filiere::with(['classes.academicLevel'])
             ->withCount('classes')
             ->orderBy('name');
-
-        if ($request->filled('faculty_id')) {
-            $query->where('faculty_id', $request->integer('faculty_id'));
-        }
 
         return response()->json($query->get());
     }
@@ -23,30 +19,28 @@ class FiliereController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'faculty_id' => 'required|exists:faculties,id',
             'name' => 'required|string',
             'code' => 'nullable|string',
         ]);
 
-        return response()->json(Filiere::create($validated)->load('faculty'), 201);
+        return response()->json(Filiere::create($validated), 201);
     }
 
     public function show(Filiere $filiere)
     {
-        return response()->json($filiere->load(['faculty', 'classes.academicLevel.students.user']));
+        return response()->json($filiere->load(['classes.academicLevel.students.user']));
     }
 
     public function update(Request $request, Filiere $filiere)
     {
         $validated = $request->validate([
-            'faculty_id' => 'sometimes|exists:faculties,id',
             'name' => 'sometimes|string',
             'code' => 'nullable|string',
         ]);
 
         $filiere->update($validated);
 
-        return response()->json($filiere->load('faculty'));
+        return response()->json($filiere);
     }
 
     public function destroy(Filiere $filiere)

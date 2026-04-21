@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import api from '../lib/axios';
 import {
   User, Mail, Phone, MapPin, Calendar, BookOpen, School,
-  Award, CalendarOff, TrendingUp, Shield, Edit3, GraduationCap
+  CalendarOff, TrendingUp, Shield, GraduationCap
 } from 'lucide-react';
 import { SkeletonProfile } from '../components/SkeletonLoader';
-import toast from 'react-hot-toast';
 
 // ─── Info Field ───────────────────────────────────────────────────────────────
-const InfoField = ({ icon: Icon, label, value }) => (
+const InfoField = ({ icon, label, value }) => (
   <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-700">
     <div className="flex-shrink-0 h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-      <Icon className="h-4 w-4 text-primary" />
+      {React.createElement(icon, { className: 'h-4 w-4 text-primary' })}
     </div>
     <div className="min-w-0">
       <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">{label}</p>
