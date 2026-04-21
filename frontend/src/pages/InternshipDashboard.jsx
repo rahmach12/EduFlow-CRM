@@ -63,9 +63,6 @@ const InternshipDashboard = () => {
       setInternships(internRes.data);
       setFilieres(filieresRes.data);
       setClasses(classesRes.data);
-      ]);
-      setStats(statsRes.data);
-      setInternships(internRes.data);
     } catch {
       toast.error('Échec du chargement des données');
     } finally {
