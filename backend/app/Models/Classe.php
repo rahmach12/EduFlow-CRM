@@ -11,7 +11,30 @@ class Classe extends Model
 
     protected $table = 'classes';
 
-    protected $fillable = ['name', 'level', 'academic_year'];
+    protected $fillable = [
+        'faculty_id',
+        'filiere_id',
+        'academic_level_id',
+        'name',
+        'code',
+        'level',
+        'academic_year',
+    ];
+
+    public function faculty()
+    {
+        return $this->belongsTo(Faculty::class);
+    }
+
+    public function filiere()
+    {
+        return $this->belongsTo(Filiere::class);
+    }
+
+    public function academicLevel()
+    {
+        return $this->belongsTo(AcademicLevel::class);
+    }
 
     public function students()
     {

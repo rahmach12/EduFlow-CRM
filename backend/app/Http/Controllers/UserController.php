@@ -16,7 +16,11 @@ class UserController extends Controller
      */
     public function roles()
     {
-        return response()->json(Role::orderBy('name')->get());
+        return response()->json(
+            Role::whereIn('name', Role::ADMIN_ALLOWED)
+                ->orderBy('name')
+                ->get()
+        );
     }
 
     /**
@@ -24,7 +28,8 @@ class UserController extends Controller
      */
     public function index()
     {
-        $users = User::with(['role', 'student.classe', 'teacher.subject'])
+        $users = User::with(['role', 'student.classe.filiere', 'teacher.subject'])
+            ->whereHas('role', fn ($query) => $query->whereIn('name', Role::ADMIN_ALLOWED))
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -46,6 +51,9 @@ class UserController extends Controller
             'gender'     => 'nullable|in:Male,Female',
         ]);
 
+        $role = Role::findOrFail($request->role_id);
+        abort_unless(in_array($role->name, Role::ADMIN_ALLOWED, true), 422, 'Admin can only create internal staff roles.');
+
         $user = User::create([
             'first_name' => $request->first_name,
             'last_name'  => $request->last_name,
@@ -55,24 +63,6 @@ class UserController extends Controller
             'cin'        => $request->cin,
             'gender'     => $request->gender,
         ]);
-
-        // Auto-create Student or Teacher profile if applicable
-        $role = Role::find($request->role_id);
-        if ($role && $role->name === 'Student') {
-            Student::create([
-                'user_id'  => $user->id,
-                'class_id' => $request->class_id ?? null,
-                'phone'    => $request->phone ?? null,
-                'address'  => $request->address ?? null,
-            ]);
-        } elseif ($role && $role->name === 'Teacher') {
-            Teacher::create([
-                'user_id'    => $user->id,
-                'subject_id' => $request->subject_id ?? null,
-                'phone'      => $request->phone ?? null,
-                'address'    => $request->address ?? null,
-            ]);
-        }
 
         return response()->json($user->fresh()->load(['role']), 201);
     }

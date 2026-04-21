@@ -1,0 +1,18 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class AcademicLevel extends Model
+{
+    use HasFactory;
+
+    protected $fillable = ['cycle', 'name', 'slug', 'rank'];
+
+    public function classes()
+    {
+        return $this->hasMany(Classe::class);
+    }
+}

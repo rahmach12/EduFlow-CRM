@@ -10,7 +10,7 @@ class Student extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'class_id', 'date_of_birth', 'phone', 'address', 'photo',
+        'user_id', 'class_id', 'matricule', 'date_of_birth', 'phone', 'address', 'photo',
         'is_eliminated', 'elimination_reason',
     ];
 
@@ -47,5 +47,14 @@ class Student extends Model
     {
         return $this->hasMany(Internship::class);
     }
-}
 
+    public function faculty()
+    {
+        return $this->hasOneThrough(Faculty::class, Classe::class, 'id', 'id', 'class_id', 'faculty_id');
+    }
+
+    public function filiere()
+    {
+        return $this->hasOneThrough(Filiere::class, Classe::class, 'id', 'id', 'class_id', 'filiere_id');
+    }
+}

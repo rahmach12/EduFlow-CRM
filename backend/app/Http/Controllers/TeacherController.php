@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Mail\AccountCreatedMail;
+use App\Models\Role;
 use App\Models\Teacher;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
-use App\Mail\AccountCreatedMail;
 
 class TeacherController extends Controller
 {
@@ -59,7 +60,7 @@ class TeacherController extends Controller
             'email' => $request->email,
             'cin' => $request->cin,
             'password' => Hash::make($password),
-            'role_id' => 3 // Teacher role
+            'role_id' => Role::firstOrCreate(['name' => 'Teacher'])->id,
         ]);
 
         $teacher = Teacher::create([
@@ -71,7 +72,6 @@ class TeacherController extends Controller
             'photo' => $request->photo
         ]);
 
-        // Dispatch Email
         Mail::to($user->email)->send(new AccountCreatedMail($user, $password));
 
         return response()->json($teacher->load('user', 'subject'), 201);
@@ -95,8 +95,8 @@ class TeacherController extends Controller
         $request->validate([
             'first_name' => 'sometimes|string',
             'last_name' => 'sometimes|string',
-            'email' => 'sometimes|email|unique:users,email,'.$teacher->user_id,
-            'cin' => 'sometimes|string|unique:users,cin,'.$teacher->user_id,
+            'email' => 'sometimes|email|unique:users,email,' . $teacher->user_id,
+            'cin' => 'sometimes|string|unique:users,cin,' . $teacher->user_id,
             'phone' => 'sometimes|required|string',
             'address' => 'sometimes|required|string',
             'date_of_birth' => 'sometimes|required|date',

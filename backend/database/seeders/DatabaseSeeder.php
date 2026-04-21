@@ -2,34 +2,67 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use App\Models\Role;
-use App\Models\Classe;
-use App\Models\Subject;
-use App\Models\Student;
-use App\Models\Teacher;
-use App\Models\Note;
-use App\Models\AttendanceSession;
+use App\Models\AcademicLevel;
 use App\Models\AttendanceRecord;
-use App\Models\Payment;
+use App\Models\AttendanceSession;
+use App\Models\Classe;
+use App\Models\Faculty;
+use App\Models\Filiere;
+use App\Models\Note;
 use App\Models\Notification;
+use App\Models\Payment;
+use App\Models\Role;
+use App\Models\Student;
+use App\Models\Subject;
+use App\Models\Teacher;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $roles = [
-            'Admin', 'Administration', 'Teacher', 'Student',
-            'Finance Officer', 'Internship Officer', 'Scolarite',
-        ];
-
-        foreach ($roles as $role) {
+        foreach (['Admin', 'Teacher', 'Student', 'Finance Officer', 'Internship Manager', 'Scolarite'] as $role) {
             Role::firstOrCreate(['name' => $role]);
         }
+
+        $faculty = Faculty::firstOrCreate(
+            ['name' => 'Faculte des Sciences Informatiques'],
+            ['code' => 'FSI']
+        );
+
+        $filieres = collect([
+            ['name' => 'Big Data', 'code' => 'BD'],
+            ['name' => 'Genie Logiciel', 'code' => 'GL'],
+            ['name' => 'Reseaux', 'code' => 'RES'],
+            ['name' => 'Intelligence Artificielle', 'code' => 'IA'],
+            ['name' => 'Securite Informatique', 'code' => 'SEC'],
+        ])->mapWithKeys(fn ($filiere) => [
+            $filiere['name'] => Filiere::firstOrCreate(
+                ['faculty_id' => $faculty->id, 'name' => $filiere['name']],
+                ['code' => $filiere['code']]
+            )
+        ]);
+
+        $levels = collect([
+            ['cycle' => 'Prepa', 'name' => '1ere Prepa', 'slug' => 'prepa-1', 'rank' => 10],
+            ['cycle' => 'Prepa', 'name' => '2eme Prepa', 'slug' => 'prepa-2', 'rank' => 20],
+            ['cycle' => 'Licence', 'name' => '1ere Licence', 'slug' => 'licence-1', 'rank' => 30],
+            ['cycle' => 'Licence', 'name' => '2eme Licence', 'slug' => 'licence-2', 'rank' => 40],
+            ['cycle' => 'Licence', 'name' => 'Terminale Licence', 'slug' => 'licence-3', 'rank' => 50],
+            ['cycle' => 'Cycle Ingenieur', 'name' => '1ere Cycle', 'slug' => 'cycle-1', 'rank' => 60],
+            ['cycle' => 'Cycle Ingenieur', 'name' => '2eme Cycle', 'slug' => 'cycle-2', 'rank' => 70],
+            ['cycle' => 'Cycle Ingenieur', 'name' => '3eme Cycle', 'slug' => 'cycle-3', 'rank' => 80],
+            ['cycle' => 'Master', 'name' => 'Master 1', 'slug' => 'master-1', 'rank' => 90],
+            ['cycle' => 'Master', 'name' => 'Master 2', 'slug' => 'master-2', 'rank' => 100],
+        ])->mapWithKeys(fn ($level) => [
+            $level['slug'] => AcademicLevel::firstOrCreate(
+                ['slug' => $level['slug']],
+                ['cycle' => $level['cycle'], 'name' => $level['name'], 'rank' => $level['rank']]
+            )
+        ]);
 
         User::firstOrCreate(
             ['email' => 'admin@school.com'],
@@ -64,52 +97,68 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // 1. Create Subjects
         $subjectNames = [
-            'Algorithmique', 'Base de données', 'Réseaux', 'Génie logiciel', 
-            'Programmation Web', 'Intelligence Artificielle', 'Mathématiques'
+            'Algorithmique', 'Base de donnees', 'Reseaux', 'Genie logiciel',
+            'Programmation Web', 'Intelligence Artificielle', 'Mathematiques'
         ];
         $subjects = [];
-        foreach ($subjectNames as $sub) {
-            $subjects[] = Subject::firstOrCreate(['name' => $sub], ['coefficient' => rand(1, 4)]);
+        foreach ($subjectNames as $subjectName) {
+            $subjects[] = Subject::firstOrCreate(['name' => $subjectName], ['coefficient' => rand(1, 4)]);
         }
 
-        // 2. Create Classes
-        $classNames = [
-            'L1 Informatique', 'L2 Informatique', 'L3 Informatique', 
-            'M1 Informatique', 'M2 Informatique', 'L1 Gestion', 'M1 Finance', 'M2 Marketing', 'L2 Réseaux'
-        ];
         $classes = [];
-        foreach ($classNames as $cls) {
-            $classes[] = Classe::firstOrCreate(['name' => $cls], ['level' => 'Higher Ed']);
+        $classMatrix = [
+            ['filiere' => 'Big Data', 'level' => 'licence-1', 'classes' => ['L1 Big Data A', 'L1 Big Data B']],
+            ['filiere' => 'Big Data', 'level' => 'licence-2', 'classes' => ['L2 Big Data A', 'L2 Big Data B']],
+            ['filiere' => 'Big Data', 'level' => 'licence-3', 'classes' => ['L3 Big Data A', 'L3 Big Data B']],
+            ['filiere' => 'Genie Logiciel', 'level' => 'cycle-1', 'classes' => ['CI1 GL A']],
+            ['filiere' => 'Reseaux', 'level' => 'master-1', 'classes' => ['M1 Reseaux A']],
+            ['filiere' => 'Intelligence Artificielle', 'level' => 'master-2', 'classes' => ['M2 IA A']],
+        ];
+
+        foreach ($classMatrix as $entry) {
+            foreach ($entry['classes'] as $className) {
+                $filiere = $filieres[$entry['filiere']];
+                $level = $levels[$entry['level']];
+                $classes[] = Classe::firstOrCreate(
+                    ['name' => $className],
+                    [
+                        'code' => strtoupper(str_replace(' ', '-', $className)),
+                        'level' => $level->name,
+                        'academic_year' => '2025-2026',
+                        'faculty_id' => $faculty->id,
+                        'filiere_id' => $filiere->id,
+                        'academic_level_id' => $level->id,
+                    ]
+                );
+            }
         }
 
-        // 3. Create Teachers
         $teacherNames = [
-            ['first' => 'Sami', 'last' => 'Ben Salah', 'gender' => 'Male'], 
-            ['first' => 'Leyla', 'last' => 'Mbarek', 'gender' => 'Female'], 
-            ['first' => 'Kais', 'last' => 'Bouzid', 'gender' => 'Male'], 
+            ['first' => 'Sami', 'last' => 'Ben Salah', 'gender' => 'Male'],
+            ['first' => 'Leyla', 'last' => 'Mbarek', 'gender' => 'Female'],
+            ['first' => 'Kais', 'last' => 'Bouzid', 'gender' => 'Male'],
             ['first' => 'Ines', 'last' => 'Mejri', 'gender' => 'Female']
         ];
         $teachers = [];
-        foreach ($teacherNames as $i => $t) {
+        foreach ($teacherNames as $teacherData) {
             $cin = '0' . rand(1000000, 9999999);
             $user = User::firstOrCreate(
                 ['email' => 'teacher' . $cin . '@eduflow.school'],
                 [
-                    'first_name' => $t['first'],
-                    'last_name' => $t['last'],
-                    'gender' => $t['gender'],
+                    'first_name' => $teacherData['first'],
+                    'last_name' => $teacherData['last'],
+                    'gender' => $teacherData['gender'],
                     'password' => Hash::make('teacher'),
                     'cin' => $cin,
-                    'role_id' => 3
+                    'role_id' => Role::where('name', 'Teacher')->first()->id
                 ]
             );
             $teacher = Teacher::firstOrCreate(
                 ['user_id' => $user->id],
                 [
-                    'phone' => '55' . rand(100000, 999999), 
-                    'address' => 'Tunis, Tunisia', 
+                    'phone' => '55' . rand(100000, 999999),
+                    'address' => 'Tunis, Tunisia',
                     'date_of_birth' => Carbon::now()->subYears(rand(35, 55)),
                     'subject_id' => $subjects[array_rand($subjects)]->id
                 ]
@@ -117,7 +166,6 @@ class DatabaseSeeder extends Seeder
             $teachers[] = $teacher;
         }
 
-        // 4. Create Students (Tunisian Names)
         $studentNames = [
             ['first' => 'Rahma', 'last' => 'Chrina', 'gender' => 'Female'],
             ['first' => 'Mohamed', 'last' => 'Ben Ali', 'gender' => 'Male'],
@@ -130,28 +178,29 @@ class DatabaseSeeder extends Seeder
             ['first' => 'Khalil', 'last' => 'Mansouri', 'gender' => 'Male'],
             ['first' => 'Nour', 'last' => 'Abid', 'gender' => 'Female']
         ];
-        
+
         $students = [];
-        foreach ($studentNames as $i => $s) {
+        foreach ($studentNames as $studentData) {
             $cin = '1' . rand(1000000, 9999999);
             $user = User::firstOrCreate(
                 ['email' => 'student' . $cin . '@eduflow.school'],
                 [
-                    'first_name' => $s['first'],
-                    'last_name' => $s['last'],
-                    'gender' => $s['gender'],
+                    'first_name' => $studentData['first'],
+                    'last_name' => $studentData['last'],
+                    'gender' => $studentData['gender'],
                     'password' => Hash::make('student'),
                     'cin' => $cin,
-                    'role_id' => 4 
+                    'role_id' => Role::where('name', 'Student')->first()->id
                 ]
             );
-            
+
             $assignedClass = $classes[array_rand($classes)];
-            
+
             $students[] = Student::firstOrCreate(
                 ['user_id' => $user->id],
                 [
                     'class_id' => $assignedClass->id,
+                    'matricule' => 'MAT' . rand(100000, 999999),
                     'date_of_birth' => Carbon::now()->subYears(rand(18, 24))->subDays(rand(0, 365)),
                     'phone' => '22' . rand(100000, 999999),
                     'address' => 'Tunis, Tunisia',
@@ -159,32 +208,31 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        // 5. Generate Notes, Absences, Payments
         foreach ($students as $student) {
-            // Notes (Random subsets of subjects)
             foreach (collect($subjects)->random(rand(4, 7)) as $subject) {
-                 Note::create([
-                     'student_id' => $student->id,
-                     'subject_id' => $subject->id,
-                     'teacher_id' => $teachers[array_rand($teachers)]->id,
-                     'type' => collect(['CC', 'DS', 'TP', 'Exam'])->random(),
-                     'value' => rand(5, 20) // Some low grades to trigger AI Weakness, some high for Excellent
-                 ]);
+                Note::create([
+                    'student_id' => $student->id,
+                    'subject_id' => $subject->id,
+                    'teacher_id' => $teachers[array_rand($teachers)]->id,
+                    'type' => collect(['CC', 'DS', 'TP', 'Exam'])->random(),
+                    'value' => rand(5, 20)
+                ]);
             }
 
-            // Payments (Paid, Unpaid, Partial)
-            $statusOptions = ['Payé', 'Impayé', 'Partiellement payé'];
+            $statusOptions = ['Paid', 'Unpaid', 'Partially Paid'];
             $amount = rand(500, 1500);
             $status = $statusOptions[array_rand($statusOptions)];
             Payment::create([
                 'student_id' => $student->id,
-                'amount' => $amount,
+                'amount' => $status === 'Paid' ? $amount : ($status === 'Partially Paid' ? round($amount / 2, 2) : 0),
+                'amount_due' => $amount,
+                'amount_paid' => $status === 'Paid' ? $amount : ($status === 'Partially Paid' ? round($amount / 2, 2) : 0),
                 'status' => $status,
                 'date' => Carbon::now()->addDays(rand(-30, 30)),
+                'receipt_number' => 'RCPT-' . strtoupper(substr(uniqid(), -6)),
             ]);
         }
 
-        // Generate Attendance Sessions
         foreach ($classes as $class) {
             for ($i = 0; $i < 3; $i++) {
                 $session = AttendanceSession::create([
@@ -197,7 +245,7 @@ class DatabaseSeeder extends Seeder
                 ]);
                 $classStudents = collect($students)->where('class_id', $class->id);
                 foreach ($classStudents as $student) {
-                    $status = rand(1, 10) > 3 ? 'present' : (rand(1, 2) == 1 ? 'absent' : 'late');
+                    $status = rand(1, 10) > 3 ? 'present' : (rand(1, 2) === 1 ? 'absent' : 'late');
                     AttendanceRecord::create([
                         'session_id' => $session->id,
                         'student_id' => $student->id,
@@ -208,20 +256,22 @@ class DatabaseSeeder extends Seeder
             }
         }
 
-        // 6. Fake Notifications
         Notification::firstOrCreate(['title' => 'Exam Schedule Fall Semester'], [
             'message' => 'Please note that the final exams will start on Jan 15th. Check your schedules.',
             'role' => 'Student',
+            'type' => 'announcement',
             'is_read' => false
         ]);
         Notification::firstOrCreate(['title' => 'Holiday Notice'], [
             'message' => 'The university will be closed for the Independence Day holiday.',
             'role' => null,
+            'type' => 'announcement',
             'is_read' => false
         ]);
         Notification::firstOrCreate(['title' => 'New Grade Added'], [
             'message' => 'Your recent exam grade has been posted.',
             'role' => 'Student',
+            'type' => 'grade',
             'is_read' => false
         ]);
     }

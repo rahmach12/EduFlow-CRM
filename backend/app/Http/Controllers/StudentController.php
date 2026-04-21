@@ -2,22 +2,38 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Mail\AccountCreatedMail;
+use App\Models\Role;
 use App\Models\Student;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
-use App\Mail\AccountCreatedMail;
 
 class StudentController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $students = Student::with(['user', 'classe'])->get()->map(function ($student) {
+        $query = Student::with(['user', 'classe.faculty', 'classe.filiere', 'classe.academicLevel']);
+
+        if ($request->filled('filiere_id')) {
+            $query->whereHas('classe', fn ($classeQuery) => $classeQuery->where('filiere_id', $request->integer('filiere_id')));
+        }
+
+        if ($request->filled('academic_level_id')) {
+            $query->whereHas('classe', fn ($classeQuery) => $classeQuery->where('academic_level_id', $request->integer('academic_level_id')));
+        }
+
+        if ($request->filled('class_id')) {
+            $query->where('class_id', $request->integer('class_id'));
+        }
+
+        $students = $query->get()->map(function ($student) {
             return [
                 'id' => $student->id,
                 'user_id' => $student->user_id,
+                'matricule' => $student->matricule,
                 'first_name' => $student->user->first_name ?? '',
                 'last_name' => $student->user->last_name ?? '',
                 'gender' => $student->user->gender,
@@ -29,9 +45,10 @@ class StudentController extends Controller
                 'photo' => $student->photo,
                 'class_id' => $student->class_id,
                 'classe' => $student->classe,
-                'user' => clone $student->user // Keeping full object just in case frontend relies on it
+                'user' => clone $student->user,
             ];
         });
+
         return response()->json($students);
     }
 
@@ -42,6 +59,7 @@ class StudentController extends Controller
             'last_name' => 'required|string',
             'email' => 'required|email|unique:users',
             'cin' => 'required|string|unique:users',
+            'matricule' => 'nullable|string|unique:students,matricule',
             'class_id' => 'required|exists:classes,id',
             'date_of_birth' => 'required|date',
             'phone' => 'required|string',
@@ -59,27 +77,27 @@ class StudentController extends Controller
             'email' => $request->email,
             'cin' => $request->cin,
             'password' => Hash::make($password),
-            'role_id' => 4 // Student role
+            'role_id' => Role::firstOrCreate(['name' => 'Student'])->id,
         ]);
 
         $student = Student::create([
             'user_id' => $user->id,
             'class_id' => $request->class_id,
+            'matricule' => $request->matricule ?: ('MAT-' . str_pad((string) $user->id, 6, '0', STR_PAD_LEFT)),
             'date_of_birth' => $request->date_of_birth,
             'phone' => $request->phone,
             'address' => $request->address,
             'photo' => $request->photo
         ]);
 
-        // Dispatch Email
         Mail::to($user->email)->send(new AccountCreatedMail($user, $password));
 
-        return response()->json($student->load('user', 'classe'), 201);
+        return response()->json($student->load('user', 'classe.faculty', 'classe.filiere', 'classe.academicLevel'), 201);
     }
 
     public function show(Student $student)
     {
-        $student->load(['user', 'classe', 'notes', 'absences', 'payments']);
+        $student->load(['user', 'classe.faculty', 'classe.filiere', 'classe.academicLevel', 'notes', 'payments', 'internships']);
         $payload = array_merge($student->toArray(), [
             'first_name' => $student->user->first_name,
             'last_name' => $student->user->last_name,
@@ -95,8 +113,9 @@ class StudentController extends Controller
         $request->validate([
             'first_name' => 'sometimes|string',
             'last_name' => 'sometimes|string',
-            'email' => 'sometimes|email|unique:users,email,'.$student->user_id,
-            'cin' => 'sometimes|string|unique:users,cin,'.$student->user_id,
+            'email' => 'sometimes|email|unique:users,email,' . $student->user_id,
+            'cin' => 'sometimes|string|unique:users,cin,' . $student->user_id,
+            'matricule' => 'nullable|string|unique:students,matricule,' . $student->id,
             'class_id' => 'nullable|exists:classes,id',
             'date_of_birth' => 'nullable|date',
             'phone' => 'sometimes|required|string',
@@ -113,14 +132,14 @@ class StudentController extends Controller
             $student->user->update($userData);
         }
 
-        $student->update($request->only('class_id', 'date_of_birth', 'phone', 'address', 'photo'));
+        $student->update($request->only('class_id', 'matricule', 'date_of_birth', 'phone', 'address', 'photo'));
 
-        return response()->json($student->load('user', 'classe'));
+        return response()->json($student->load('user', 'classe.faculty', 'classe.filiere', 'classe.academicLevel'));
     }
 
     public function destroy(Student $student)
     {
-        $student->user->delete(); // This will cascade delete student record
+        $student->user->delete();
         return response()->json(['message' => 'Student deleted successfully']);
     }
 }
