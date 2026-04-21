@@ -1,40 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import api from '../lib/axios';
+import React, { useEffect, useMemo, useState } from 'react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { useAuth } from '../contexts/AuthContext';
-import { Plus, Search, DollarSign, Download, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
-import classNames from 'classnames';
+import { CheckCircle, Clock, DollarSign, Download, Plus, Search, Tag, TriangleAlert } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../lib/axios';
 import Modal from '../components/Modal';
+import { useAuth } from '../hooks/useAuth';
 
-const AdminFinanceView = () => {
+const STATUS_META = {
+  Paid: { label: 'Paye', className: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
+  'Partially Paid': { label: 'Partiellement paye', className: 'bg-amber-100 text-amber-700', icon: Clock },
+  Unpaid: { label: 'Impaye', className: 'bg-rose-100 text-rose-700', icon: TriangleAlert },
+};
+
+const EMPTY_FORM = {
+  student_id: '',
+  amount: '',
+  amount_due: '',
+  amount_paid: '',
+  date: new Date().toISOString().split('T')[0],
+  due_date: '',
+  status: 'Paid',
+  promotion_percentage: '',
+  details: '',
+};
+
+const FinanceOfficerView = () => {
   const [payments, setPayments] = useState([]);
   const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    student_id: '',
-    amount: '',
-    date: new Date().toISOString().split('T')[0],
-    status: 'Payé',
-    details: ''
-  });
+  const [formData, setFormData] = useState(EMPTY_FORM);
 
   const fetchData = async () => {
     try {
       const [paymentsRes, studentsRes] = await Promise.all([
         api.get('/payments'),
-        api.get('/students')
+        api.get('/students'),
       ]);
       setPayments(paymentsRes.data);
       setStudents(studentsRes.data);
-    } catch (error) {
-      toast.error("Failed to load financial records.");
+    } catch {
+      toast.error('Chargement des donnees financieres impossible');
     } finally {
       setLoading(false);
     }
@@ -44,243 +53,223 @@ const AdminFinanceView = () => {
     fetchData();
   }, []);
 
-  const openModal = () => {
-    setFormData({ 
-      student_id: '', amount: '', date: new Date().toISOString().split('T')[0], status: 'Payé', details: '' 
+  const filteredPayments = useMemo(() => payments.filter((payment) => {
+    const student = payment.student;
+    const haystack = [
+      student?.matricule,
+      student?.user?.cin,
+      student?.user?.first_name,
+      student?.user?.last_name,
+      payment.status,
+      payment.receipt_number,
+    ].filter(Boolean).join(' ').toLowerCase();
+    return haystack.includes(searchTerm.toLowerCase());
+  }), [payments, searchTerm]);
+
+  const buildReceipt = async (payment) => {
+    const receiptRes = await api.get(`/payments/${payment.id}/receipt`);
+    const receipt = receiptRes.data;
+    const doc = new jsPDF();
+    doc.setFontSize(22);
+    doc.setTextColor(97, 61, 193);
+    doc.text('University CRM - Recu', 14, 18);
+    doc.setFontSize(11);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Recu: ${receipt.receipt_number}`, 14, 28);
+    doc.text(`Date: ${receipt.date}`, 14, 35);
+    doc.text(`Etudiant: ${receipt.student?.user?.first_name || ''} ${receipt.student?.user?.last_name || ''}`, 14, 42);
+    doc.text(`Matricule: ${receipt.student?.matricule || 'N/A'}`, 14, 49);
+
+    doc.autoTable({
+      startY: 58,
+      head: [['Designation', 'Montant du', 'Montant paye', 'Promotion', 'Statut']],
+      body: [[
+        receipt.details || 'Frais universitaires',
+        `${receipt.amount_due || 0} TND`,
+        `${receipt.amount_paid || 0} TND`,
+        `${receipt.promotion_percentage || 0}%`,
+        STATUS_META[receipt.status]?.label || receipt.status,
+      ]],
+      headStyles: { fillColor: [97, 61, 193] },
     });
-    setIsModalOpen(true);
+
+    return { doc, receipt };
   };
 
-  const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const downloadReceipt = async (payment) => {
+    try {
+      const { doc, receipt } = await buildReceipt(payment);
+      doc.save(`${receipt.receipt_number}.pdf`);
+    } catch {
+      toast.error('Generation du recu impossible');
+    }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setIsSubmitting(true);
     try {
-      await api.post('/payments', formData);
-      toast.success("Payment recorded successfully!");
+      await api.post('/payments', {
+        ...formData,
+        promotion_percentage: formData.promotion_percentage || 0,
+        amount_due: formData.amount_due || formData.amount,
+        amount_paid: formData.amount_paid || formData.amount,
+      });
+      toast.success('Paiement enregistre');
       setIsModalOpen(false);
+      setFormData(EMPTY_FORM);
       fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to record payment.");
+      toast.error(error.response?.data?.message || 'Enregistrement impossible');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const filteredPayments = payments.filter(payment => 
-    payment.student?.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.status.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'Payé': return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400';
-      case 'Impayé': return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400';
-      case 'Partiellement payé': return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400';
-      default: return 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-300';
-    }
-  };
-
-  const generateInvoicePDF = (payment) => {
-    const doc = new jsPDF();
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.setTextColor(108, 92, 231); // primary color
-    doc.text("EduFlow CRM - Facture", 14, 20);
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Reçu N°: INV-${payment.id.toString().padStart(4, '0')}`, 14, 30);
-    doc.text(`Date: ${payment.date}`, 14, 38);
-    
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(14);
-    doc.text("Informations Étudiant:", 14, 50);
-    doc.setFontSize(12);
-    doc.text(`Nom: ${payment.student?.user?.first_name || ''} ${payment.student?.user?.last_name || ''}`, 14, 58);
-    
-    doc.autoTable({
-      startY: 70,
-      head: [['Détails', 'Statut', 'Montant (TND)']],
-      body: [
-        [payment.invoices?.[0]?.details || 'Frais de scolarité', payment.status, payment.amount]
-      ],
-      headStyles: { fillColor: [108, 92, 231] },
-    });
-    
-    doc.save(`Facture_${payment.student?.user?.first_name || 'etudiant'}_${payment.id}.pdf`);
-  };
-
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Financial Management</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Track student tuition fees, invoices, and payments.</p>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Finance universitaire</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Recherche par matricule, CIN, nom ou prenom. Gestion des promotions et des recus PDF.</p>
         </div>
-        <button 
-          onClick={openModal}
-          className="flex items-center justify-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors shadow-sm"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Record Payment
+        <button onClick={() => setIsModalOpen(true)} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-primary/20 transition hover:bg-primary/90">
+          <Plus className="h-4 w-4" />
+          Enregistrer un paiement
         </button>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 shadow rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-          <div className="relative max-w-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-slate-400" />
-            </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <FinanceStat title="Paiements payes" value={payments.filter((payment) => payment.status === 'Paid').length} />
+        <FinanceStat title="Paiements partiels" value={payments.filter((payment) => payment.status === 'Partially Paid').length} />
+        <FinanceStat title="Promotions appliquees" value={payments.filter((payment) => Number(payment.promotion_percentage) > 0).length} />
+      </div>
+
+      <div className="rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="border-b border-slate-100 p-4 dark:border-slate-700">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
-              type="text"
-              className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary text-sm transition-colors"
-              placeholder="Search by student or status..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Rechercher matricule, CIN, nom, prenom..."
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-900 outline-none transition focus:border-primary dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+          <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-700">
             <thead className="bg-slate-50 dark:bg-slate-900/50">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Student
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Amount
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Date
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="relative px-6 py-3">
-                  <span className="sr-only">Details</span>
-                </th>
+                {['Etudiant', 'Classe', 'Montant', 'Promotion', 'Statut', 'Recu'].map((title) => (
+                  <th key={title} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+            <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
               {loading ? (
-                <tr>
-                  <td colSpan="5" className="px-6 py-4 text-center text-sm text-slate-500">Loading payments...</td>
-                </tr>
+                <tr><td colSpan="6" className="px-6 py-8 text-center text-sm text-slate-500">Chargement...</td></tr>
               ) : filteredPayments.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="px-6 py-4 text-center text-sm text-slate-500">No payment records found</td>
-                </tr>
-              ) : (
-                filteredPayments.map((payment) => (
-                  <tr key={payment.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-xs">
-                          {payment.student?.user?.name?.charAt(0) || '?'}
-                        </div>
-                        <div className="ml-3 text-sm font-medium text-slate-900 dark:text-white">
-                          {payment.student?.user?.name || 'Unknown Student'}
-                        </div>
-                      </div>
+                <tr><td colSpan="6" className="px-6 py-8 text-center text-sm text-slate-500">Aucun paiement trouve</td></tr>
+              ) : filteredPayments.map((payment) => {
+                const meta = STATUS_META[payment.status] || STATUS_META.Unpaid;
+                const Icon = meta.icon;
+                return (
+                  <tr key={payment.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-700/40">
+                    <td className="px-6 py-4">
+                      <p className="text-sm font-semibold text-slate-800 dark:text-white">
+                        {payment.student?.user?.first_name} {payment.student?.user?.last_name}
+                      </p>
+                      <p className="text-xs text-slate-400">Matricule: {payment.student?.matricule || 'N/A'} | CIN: {payment.student?.user?.cin || 'N/A'}</p>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-white font-medium flex items-center">
-                      <DollarSign className="h-4 w-4 mr-1 text-slate-400" />
-                      {payment.amount} TND
+                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">{payment.student?.classe?.name || '—'}</td>
+                    <td className="px-6 py-4 text-sm font-semibold text-slate-800 dark:text-white">
+                      {payment.amount_paid || payment.amount} / {payment.amount_due || payment.amount} TND
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                      {payment.date}
+                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">
+                      {Number(payment.promotion_percentage) > 0 ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-fuchsia-100 px-3 py-1 text-xs font-semibold text-fuchsia-700">
+                          <Tag className="h-3 w-3" />
+                          {payment.promotion_percentage}%
+                        </span>
+                      ) : '—'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={classNames('px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full', getStatusColor(payment.status))}>
-                        {payment.status}
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${meta.className}`}>
+                        <Icon className="h-3 w-3" />
+                        {meta.label}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button onClick={() => generateInvoicePDF(payment)} className="text-primary hover:text-primary/80">
-                        View Invoice
+                    <td className="px-6 py-4">
+                      <button onClick={() => downloadReceipt(payment)} className="inline-flex items-center gap-2 rounded-xl bg-primary/10 px-3 py-2 text-sm font-medium text-primary transition hover:bg-primary/20">
+                        <Download className="h-4 w-4" />
+                        PDF
                       </button>
                     </td>
                   </tr>
-                ))
-              )}
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
 
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)}
-        title="Record New Payment"
-      >
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Enregistrer un paiement">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Student *</label>
-            <select 
-              required name="student_id" value={formData.student_id} onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
-            >
-              <option value="">Select a student...</option>
-              {students.map(std => (
-                <option key={std.id} value={std.id}>{std.user?.name}</option>
+          <Field label="Etudiant">
+            <select value={formData.student_id} onChange={(event) => setFormData({ ...formData, student_id: event.target.value })} required className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white">
+              <option value="">Selectionner...</option>
+              {students.map((student) => (
+                <option key={student.id} value={student.id}>
+                  {student.first_name} {student.last_name} - {student.matricule || 'N/A'}
+                </option>
               ))}
             </select>
+          </Field>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Montant total">
+              <input type="number" step="0.01" value={formData.amount_due} onChange={(event) => setFormData({ ...formData, amount_due: event.target.value, amount: event.target.value })} required className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+            </Field>
+            <Field label="Montant paye">
+              <input type="number" step="0.01" value={formData.amount_paid} onChange={(event) => setFormData({ ...formData, amount_paid: event.target.value, amount: event.target.value })} required className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+            </Field>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Amount (TND) *</label>
-              <input 
-                required type="number" step="0.01" name="amount" value={formData.amount} onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date *</label>
-              <input 
-                required type="date" name="date" value={formData.date} onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
-              />
-            </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Field label="Date paiement">
+              <input type="date" value={formData.date} onChange={(event) => setFormData({ ...formData, date: event.target.value })} required className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+            </Field>
+            <Field label="Date limite">
+              <input type="date" value={formData.due_date} onChange={(event) => setFormData({ ...formData, due_date: event.target.value })} className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+            </Field>
+            <Field label="Statut">
+              <select value={formData.status} onChange={(event) => setFormData({ ...formData, status: event.target.value })} required className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white">
+                <option value="Paid">Paye</option>
+                <option value="Partially Paid">Partiellement paye</option>
+                <option value="Unpaid">Impaye</option>
+              </select>
+            </Field>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Status *</label>
-            <select 
-              required name="status" value={formData.status} onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
-            >
-              <option value="Payé">Payé</option>
-              <option value="Partiellement payé">Partiellement payé</option>
-              <option value="Impayé">Impayé</option>
-            </select>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Promotion %">
+              <input type="number" step="0.01" min="0" max="100" value={formData.promotion_percentage} onChange={(event) => setFormData({ ...formData, promotion_percentage: event.target.value })} className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+            </Field>
+            <Field label="Description">
+              <input value={formData.details} onChange={(event) => setFormData({ ...formData, details: event.target.value })} placeholder="Inscription 2025-2026" className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+            </Field>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Details / Invoice Description</label>
-            <textarea 
-              name="details" value={formData.details} onChange={handleInputChange} rows="2"
-              placeholder="e.g. Inscription 2023-2024"
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
-            ></textarea>
+
+          <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 p-4 text-sm text-fuchsia-800">
+            Si une promotion est appliquee, le systeme enverra automatiquement une notification a l&apos;etudiant.
           </div>
-          
-          <div className="mt-5 flex justify-end space-x-3">
-            <button 
-              type="button" onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700"
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit" disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary border border-transparent rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
-            >
-              {isSubmitting ? 'Saving...' : 'Save'}
+
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-600 dark:border-slate-600 dark:text-slate-300">Annuler</button>
+            <button type="submit" disabled={isSubmitting} className="rounded-xl bg-primary px-5 py-2 text-sm font-medium text-white disabled:opacity-50">
+              {isSubmitting ? 'Enregistrement...' : 'Enregistrer'}
             </button>
           </div>
         </form>
@@ -295,118 +284,72 @@ const StudentFinanceView = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchMyFinance = async () => {
+    const fetchMyPayments = async () => {
       try {
         const studentId = user?.student?.id;
-        if (!studentId) return;
-        const res = await api.get(`/payments?student_id=${studentId}`);
-        setPayments(res.data);
-      } catch (err) {
-        toast.error("Échec du chargement des données financières.");
+        if (!studentId) {
+          return;
+        }
+        const paymentsRes = await api.get(`/payments?student_id=${studentId}`);
+        setPayments(paymentsRes.data);
+      } catch {
+        toast.error('Chargement de votre espace financier impossible');
       } finally {
         setLoading(false);
       }
     };
-    fetchMyFinance();
+
+    fetchMyPayments();
   }, [user]);
 
-  const totalPaid = payments.filter(p => p.status === 'Payé').reduce((acc, curr) => acc + parseFloat(curr.amount), 0);
-  const totalPending = payments.filter(p => p.status !== 'Payé').reduce((acc, curr) => acc + parseFloat(curr.amount), 0);
-
-  const generateInvoicePDF = (payment) => {
-    const doc = new jsPDF();
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.setTextColor(108, 92, 231);
-    doc.text("EduFlow CRM - Reçu", 14, 20);
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Reçu N°: INV-${payment.id.toString().padStart(4, '0')}`, 14, 30);
-    doc.text(`Date: ${payment.date}`, 14, 38);
-    
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(14);
-    doc.text("Mes Informations:", 14, 50);
-    doc.setFontSize(12);
-    doc.text(`Nom: ${user?.first_name || ''} ${user?.last_name || ''}`, 14, 58);
-    
-    doc.autoTable({
-      startY: 70,
-      head: [['Désignation', 'Statut', 'Montant (TND)']],
-      body: [
-        [payment.invoices?.[0]?.details || 'Paiement', payment.status, payment.amount]
-      ],
-      headStyles: { fillColor: [108, 92, 231] },
-    });
-    
-    doc.save(`Recu_${payment.id}.pdf`);
-  };
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Payé': return <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center gap-1"><CheckCircle className="w-3 h-3"/> {status}</span>;
-      case 'Impayé': return <span className="px-3 py-1 rounded-full bg-rose-100 text-rose-700 text-xs font-bold flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> {status}</span>;
-      default: return <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> {status}</span>;
-    }
-  };
-
-  if (loading) return (
-    <div className="flex justify-center items-center py-20">
-      <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
-    </div>
-  );
+  const totalPaid = payments.reduce((sum, payment) => sum + Number(payment.amount_paid || 0), 0);
+  const totalDue = payments.reduce((sum, payment) => sum + Number(payment.amount_due || payment.amount || 0), 0);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-          <DollarSign className="h-6 w-6 text-primary" /> Mon Espace Financier
+        <h2 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
+          <DollarSign className="h-6 w-6 text-primary" />
+          Mon espace financier
         </h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400">Consultez vos paiements et factures.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Suivi de vos paiements, promotions et recus.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="rounded-2xl p-6 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg">
-          <p className="text-white/70 text-xs uppercase tracking-wider font-medium">Total Payé</p>
-          <p className="text-4xl font-extrabold mt-2">{totalPaid.toFixed(2)} <span className="text-xl font-normal opacity-70">TND</span></p>
-        </div>
-        <div className="rounded-2xl p-6 bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg">
-           <p className="text-white/70 text-xs uppercase tracking-wider font-medium">Reste à payer</p>
-           <p className="text-4xl font-extrabold mt-2">{totalPending.toFixed(2)} <span className="text-xl font-normal opacity-70">TND</span></p>
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FinanceStat title="Total paye" value={`${totalPaid.toFixed(2)} TND`} />
+        <FinanceStat title="Reste a payer" value={`${Math.max(totalDue - totalPaid, 0).toFixed(2)} TND`} />
       </div>
 
-      <div className="bg-white dark:bg-[#1E1B4B] rounded-2xl border border-slate-100 dark:border-[#2e2a6b] shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-[#2e2a6b]">
-          <h3 className="font-bold text-slate-800 dark:text-white">Historique des Paiements</h3>
+      <div className="rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="border-b border-slate-100 px-6 py-4 dark:border-slate-700">
+          <h3 className="font-semibold text-slate-800 dark:text-white">Historique</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-100 dark:divide-[#2e2a6b]">
-            <thead className="bg-slate-50 dark:bg-[#0F172A]/50">
+          <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-700">
+            <thead className="bg-slate-50 dark:bg-slate-900/50">
               <tr>
-                {['Montant', 'Date', 'Statut', 'Détails', 'Reçu'].map((h, i) => (
-                  <th key={i} className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{h}</th>
+                {['Montant', 'Statut', 'Promotion', 'Date', 'Recu'].map((title) => (
+                  <th key={title} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-[#2e2a6b]">
-              {payments.length === 0 ? (
-                 <tr><td colSpan="5" className="px-6 py-8 text-center text-slate-400">Aucun paiement enregistré.</td></tr>
-              ) : payments.map(p => (
-                <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-[#2e2a6b]/50">
-                  <td className="px-6 py-4 font-bold text-slate-800 dark:text-white">{p.amount} TND</td>
-                  <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">{p.date}</td>
-                  <td className="px-6 py-4">{getStatusBadge(p.status)}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300 italic">{p.invoices?.[0]?.details || 'Scolarité'}</td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => generateInvoicePDF(p)} className="inline-flex items-center text-primary text-sm font-medium hover:underline">
-                      <Download className="h-4 w-4 mr-1"/> PDF
-                    </button>
-                  </td>
-                </tr>
-              ))}
+            <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
+              {loading ? (
+                <tr><td colSpan="5" className="px-6 py-8 text-center text-sm text-slate-500">Chargement...</td></tr>
+              ) : payments.length === 0 ? (
+                <tr><td colSpan="5" className="px-6 py-8 text-center text-sm text-slate-500">Aucun paiement enregistre</td></tr>
+              ) : payments.map((payment) => {
+                const meta = STATUS_META[payment.status] || STATUS_META.Unpaid;
+                return (
+                  <tr key={payment.id}>
+                    <td className="px-6 py-4 text-sm font-semibold text-slate-800 dark:text-white">{payment.amount_paid || 0} / {payment.amount_due || payment.amount} TND</td>
+                    <td className="px-6 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${meta.className}`}>{meta.label}</span></td>
+                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">{payment.promotion_percentage ? `${payment.promotion_percentage}%` : '—'}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">{payment.date}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">{payment.receipt_number || '—'}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -415,8 +358,24 @@ const StudentFinanceView = () => {
   );
 };
 
+const FinanceStat = ({ title, value }) => (
+  <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <p className="text-sm text-slate-500 dark:text-slate-400">{title}</p>
+    <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{value}</p>
+  </div>
+);
+
+const Field = ({ label, children }) => (
+  <div>
+    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">{label}</label>
+    {children}
+  </div>
+);
+
 export const Finance = () => {
   const { user } = useAuth();
-  if (user?.role?.name === 'Student') return <StudentFinanceView />;
-  return <AdminFinanceView />;
+  if (user?.role?.name === 'Student') {
+    return <StudentFinanceView />;
+  }
+  return <FinanceOfficerView />;
 };
