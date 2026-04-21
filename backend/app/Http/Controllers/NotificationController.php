@@ -10,15 +10,16 @@ class NotificationController extends Controller
     public function index(Request $request)
     {
         $user = auth()->guard('api')->user();
-        if (!$user) return response()->json([]);
+        if (! $user) {
+            return response()->json([]);
+        }
 
-        // Get notifications targeted at this specific user OR their role OR public (null)
-        $notifications = Notification::where(function($query) use ($user) {
+        $notifications = Notification::where(function ($query) use ($user) {
             $query->where('user_id', $user->id)
-                  ->orWhere('role', $user->role->name)
-                  ->orWhere(function($q) {
-                      $q->whereNull('user_id')->whereNull('role');
-                  });
+                ->orWhere('role', $user->role->name)
+                ->orWhere(function ($publicQuery) {
+                    $publicQuery->whereNull('user_id')->whereNull('role');
+                });
         })->orderBy('created_at', 'desc')->get();
 
         return response()->json($notifications);
@@ -30,7 +31,9 @@ class NotificationController extends Controller
             'title' => 'required|string',
             'message' => 'required|string',
             'role' => 'nullable|string',
-            'user_id' => 'nullable|exists:users,id'
+            'user_id' => 'nullable|exists:users,id',
+            'type' => 'nullable|string',
+            'data' => 'nullable|array',
         ]);
 
         $notification = Notification::create([
@@ -38,7 +41,9 @@ class NotificationController extends Controller
             'message' => $validated['message'],
             'role' => $validated['role'] ?? null,
             'user_id' => $validated['user_id'] ?? null,
-            'is_read' => false
+            'type' => $validated['type'] ?? null,
+            'data' => $validated['data'] ?? null,
+            'is_read' => false,
         ]);
 
         broadcast(new \App\Events\NotificationCreated($notification))->toOthers();

@@ -12,9 +12,16 @@ class Notification extends Model
     protected $fillable = [
         'user_id',
         'role',
+        'type',
         'title',
         'message',
+        'data',
         'is_read',
+    ];
+
+    protected $casts = [
+        'is_read' => 'boolean',
+        'data' => 'array',
     ];
 
     public function user()
