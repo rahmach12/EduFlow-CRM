@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -70,13 +71,42 @@
     /* Purple-500 */
     --ring: 271 81.3% 65.3%;
   }
+
+/* Glassmorphism utilities */
+.glass {
+  @apply bg-white/30 dark:bg-[#1E1B4B]/30 backdrop-blur-lg border border-white/20 dark:border-[#2e2a6b]/30 rounded-xl;
+}
+
+/* Global font */
+body {
+  font-family: 'Roboto', sans-serif;
+}
+
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border transition-all duration-300 ease-in-out;
   }
   body {
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .btn-generate {
+    @apply flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg transition-colors;
+  }
+  .btn-secondary {
+    @apply bg-secondary hover:bg-secondary/80 text-secondary-foreground px-4 py-2 rounded-lg transition-colors;
+  }
+  .btn-outline {
+    @apply border border-input bg-transparent hover:bg-accent hover:text-accent-foreground px-4 py-2 rounded-lg transition-colors;
+  }
+}
+
+/* Utility color classes */
+.bg-primary { background-color: hsl(var(--primary)); }
+.text-primary-foreground { color: hsl(var(--primary-foreground)); }
+.border-primary { border-color: hsl(var(--primary)); }
+.hover\:bg-primary:hover { background-color: hsl(var(--primary)); }

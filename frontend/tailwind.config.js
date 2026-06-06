@@ -14,15 +14,31 @@ export default {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#6C5CE7",
-          light: "#8275E9",
-          dark: "#5A4AC4",
+          DEFAULT: "#8B5CF6", // Pastel Violet
+          light: "#A78BFA",
+          dark: "#7C3AED",
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
-          DEFAULT: "#A78BFA",
-          light: "#DDD6FE",
+          DEFAULT: "#EC4899", // Pastel Pink
+          light: "#F472B6",
+          dark: "#DB2777",
           foreground: "hsl(var(--secondary-foreground))",
+        },
+        success: {
+          DEFAULT: "#10B981", // Pastel Green
+          light: "#34D399",
+          dark: "#059669",
+        },
+        warning: {
+          DEFAULT: "#F59E0B", // Pastel Orange
+          light: "#FBBF24",
+          dark: "#D97706",
+        },
+        info: {
+          DEFAULT: "#3B82F6", // Pastel Blue
+          light: "#60A5FA",
+          dark: "#2563EB",
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",

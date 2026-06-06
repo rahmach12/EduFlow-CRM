@@ -14,7 +14,7 @@ export const AuthProvider = ({ children }) => {
           const res = await api.get('/me');
           setUser(res.data);
         } catch (error) {
-          console.error("Failed to fetch user:", error);
+          // Token is invalid or expired, silently remove it
           localStorage.removeItem('token');
         }
       }

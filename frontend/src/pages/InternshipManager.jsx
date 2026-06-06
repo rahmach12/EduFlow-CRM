@@ -172,7 +172,11 @@ const InternshipManager = () => {
                   </td>
                   <td className="px-6 py-4">
                     <p className="text-sm font-semibold text-slate-800 dark:text-white">{internship.type}</p>
-                    <p className="text-xs text-slate-400">{internship.company_name}</p>
+                    <p className="text-xs text-slate-500 font-medium">{internship.company_name}</p>
+                    {internship.title && <p className="text-xs text-slate-400 font-medium">Sujet: {internship.title}</p>}
+                    {internship.description && (
+                      <p className="mt-1 text-xs text-slate-400 italic max-w-xs truncate" title={internship.description}>Desc: {internship.description}</p>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <StatusBadge status={internship.status} />
@@ -208,8 +212,11 @@ const InternshipManager = () => {
 
       <Modal isOpen={statusModal.open} onClose={() => setStatusModal({ open: false, status: 'Approved', rejection_reason: '' })} title={statusModal.status === 'Approved' ? 'Approuver le stage' : 'Rejeter le stage'}>
         <form onSubmit={submitStatus} className="space-y-4">
-          <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700 dark:bg-slate-700/40 dark:text-slate-200">
-            {selectedInternship?.student?.user?.first_name} {selectedInternship?.student?.user?.last_name} · {selectedInternship?.type}
+          <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700 dark:bg-slate-700/40 dark:text-slate-200 space-y-1">
+            <p><strong>Étudiant:</strong> {selectedInternship?.student?.user?.first_name} {selectedInternship?.student?.user?.last_name}</p>
+            <p><strong>Type:</strong> {selectedInternship?.type}</p>
+            <p><strong>Sujet:</strong> {selectedInternship?.title || 'Non renseigné'}</p>
+            {selectedInternship?.description && <p><strong>Description:</strong> {selectedInternship?.description}</p>}
           </div>
           {statusModal.status === 'Rejected' && (
             <div>

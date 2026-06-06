@@ -6,7 +6,6 @@ use App\Models\AcademicLevel;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\Classe;
-use App\Models\Faculty;
 use App\Models\Filiere;
 use App\Models\Note;
 use App\Models\Notification;
@@ -28,11 +27,6 @@ class DatabaseSeeder extends Seeder
             Role::firstOrCreate(['name' => $role]);
         }
 
-        $faculty = Faculty::firstOrCreate(
-            ['name' => 'Faculte des Sciences Informatiques'],
-            ['code' => 'FSI']
-        );
-
         $filieres = collect([
             ['name' => 'Big Data', 'code' => 'BD'],
             ['name' => 'Genie Logiciel', 'code' => 'GL'],
@@ -41,20 +35,20 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Securite Informatique', 'code' => 'SEC'],
         ])->mapWithKeys(fn ($filiere) => [
             $filiere['name'] => Filiere::firstOrCreate(
-                ['faculty_id' => $faculty->id, 'name' => $filiere['name']],
+                ['name' => $filiere['name']],
                 ['code' => $filiere['code']]
             )
         ]);
 
         $levels = collect([
-            ['cycle' => 'Prepa', 'name' => '1ere Prepa', 'slug' => 'prepa-1', 'rank' => 10],
-            ['cycle' => 'Prepa', 'name' => '2eme Prepa', 'slug' => 'prepa-2', 'rank' => 20],
-            ['cycle' => 'Licence', 'name' => '1ere Licence', 'slug' => 'licence-1', 'rank' => 30],
-            ['cycle' => 'Licence', 'name' => '2eme Licence', 'slug' => 'licence-2', 'rank' => 40],
-            ['cycle' => 'Licence', 'name' => 'Terminale Licence', 'slug' => 'licence-3', 'rank' => 50],
-            ['cycle' => 'Cycle Ingenieur', 'name' => '1ere Cycle', 'slug' => 'cycle-1', 'rank' => 60],
-            ['cycle' => 'Cycle Ingenieur', 'name' => '2eme Cycle', 'slug' => 'cycle-2', 'rank' => 70],
-            ['cycle' => 'Cycle Ingenieur', 'name' => '3eme Cycle', 'slug' => 'cycle-3', 'rank' => 80],
+            ['cycle' => 'Prépa', 'name' => 'Prépa 1', 'slug' => 'prepa-1', 'rank' => 10],
+            ['cycle' => 'Prépa', 'name' => 'Prépa 2', 'slug' => 'prepa-2', 'rank' => 20],
+            ['cycle' => 'Licence', 'name' => 'Licence 1', 'slug' => 'licence-1', 'rank' => 30],
+            ['cycle' => 'Licence', 'name' => 'Licence 2', 'slug' => 'licence-2', 'rank' => 40],
+            ['cycle' => 'Licence', 'name' => 'Licence 3', 'slug' => 'licence-3', 'rank' => 50],
+            ['cycle' => 'Cycle Ingénieur', 'name' => 'Cycle Ingénieur 1', 'slug' => 'cycle-1', 'rank' => 60],
+            ['cycle' => 'Cycle Ingénieur', 'name' => 'Cycle Ingénieur 2', 'slug' => 'cycle-2', 'rank' => 70],
+            ['cycle' => 'Cycle Ingénieur', 'name' => 'Cycle Ingénieur 3', 'slug' => 'cycle-3', 'rank' => 80],
             ['cycle' => 'Master', 'name' => 'Master 1', 'slug' => 'master-1', 'rank' => 90],
             ['cycle' => 'Master', 'name' => 'Master 2', 'slug' => 'master-2', 'rank' => 100],
         ])->mapWithKeys(fn ($level) => [
@@ -97,6 +91,17 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        User::firstOrCreate(
+            ['email' => 'scolarite@school.com'],
+            [
+                'first_name' => 'Scolarite',
+                'last_name' => 'Officer',
+                'gender' => 'Male',
+                'password' => Hash::make('password123'),
+                'role_id' => Role::where('name', 'Scolarite')->first()->id
+            ]
+        );
+
         $subjectNames = [
             'Algorithmique', 'Base de donnees', 'Reseaux', 'Genie logiciel',
             'Programmation Web', 'Intelligence Artificielle', 'Mathematiques'
@@ -126,7 +131,6 @@ class DatabaseSeeder extends Seeder
                         'code' => strtoupper(str_replace(' ', '-', $className)),
                         'level' => $level->name,
                         'academic_year' => '2025-2026',
-                        'faculty_id' => $faculty->id,
                         'filiere_id' => $filiere->id,
                         'academic_level_id' => $level->id,
                     ]
@@ -163,6 +167,18 @@ class DatabaseSeeder extends Seeder
                     'subject_id' => $subjects[array_rand($subjects)]->id
                 ]
             );
+
+            // Sync random subjects and classes to the teacher
+            $teacherSubjects = collect($subjects)->random(rand(1, 2));
+            $teacher->subjects()->sync($teacherSubjects->pluck('id'));
+            
+            // Sync random classes to the teacher
+            $teacherClasses = collect($classes)->random(rand(1, 2));
+            $teacher->classes()->sync($teacherClasses->pluck('id'));
+
+            // Ensure the main subject_id matches the first synced subject
+            $teacher->update(['subject_id' => $teacherSubjects->first()->id]);
+
             $teachers[] = $teacher;
         }
 
@@ -274,5 +290,7 @@ class DatabaseSeeder extends Seeder
             'type' => 'grade',
             'is_read' => false
         ]);
+
+        $this->call(AdvancedScheduleSeeder::class);
     }
 }

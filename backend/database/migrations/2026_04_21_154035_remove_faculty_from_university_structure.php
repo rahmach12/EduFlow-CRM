@@ -19,8 +19,9 @@ return new class extends Migration
 
         Schema::table('filieres', function (Blueprint $table) {
             if (Schema::hasColumn('filieres', 'faculty_id')) {
-                $table->dropConstrainedForeignId('faculty_id');
+                $table->dropForeign(['faculty_id']);
                 $table->dropUnique(['faculty_id', 'name']);
+                $table->dropColumn('faculty_id');
                 $table->unique('name');
             }
         });

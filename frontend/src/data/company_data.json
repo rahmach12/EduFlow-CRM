@@ -1,0 +1,59 @@
+{
+  "company": {
+    "name": "EduFlow",
+    "description": "EduFlow est une plateforme CRM innovante conçue pour optimiser la gestion des établissements éducatifs, faciliter la communication entre l'administration, les enseignants, les étudiants et les parents.",
+    "industry": "Education Technology (EdTech)",
+    "founded_year": 2023
+  },
+  "contact": {
+    "email": "support@eduflow-crm.com",
+    "phone": "+216 71 123 456",
+    "address": {
+      "street": "123 Avenue de l'Innovation",
+      "city": "Tunis",
+      "postal_code": "1000",
+      "country": "Tunisie"
+    },
+    "support_hours": "Lundi à Vendredi: 08:00 - 18:00, Samedi: 08:00 - 13:00"
+  },
+  "services": [
+    {
+      "id": "srv_1",
+      "name": "Gestion des inscriptions",
+      "description": "Système automatisé pour gérer les dossiers d'inscription des étudiants de bout en bout avec soumission de documents en ligne."
+    },
+    {
+      "id": "srv_2",
+      "name": "Suivi des paiements",
+      "description": "Suivi en temps réel des frais de scolarité, facturation automatisée et gestion des échéanciers."
+    },
+    {
+      "id": "srv_3",
+      "name": "Communication centralisée",
+      "description": "Système de messagerie interne, notifications par email et SMS pour alerter sur les événements importants ou absences."
+    }
+  ],
+  "pricing": {
+    "plan_basique": "Destiné aux petites structures, inclut les fonctionnalités de base à 500 TND / mois.",
+    "plan_premium": "Pour les grandes écoles, inclut toutes les fonctionnalités avancées et un support prioritaire à 1200 TND / mois."
+  },
+  "faqs": [
+    {
+      "question": "Comment puis-je réinitialiser mon mot de passe ?",
+      "answer": "Pour réinitialiser votre mot de passe, cliquez sur 'Mot de passe oublié' sur la page de connexion et suivez les instructions envoyées à votre adresse e-mail."
+    },
+    {
+      "question": "Quels sont les modes de paiement acceptés ?",
+      "answer": "Nous acceptons les paiements par carte bancaire, virement bancaire et espèces au sein de l'établissement."
+    },
+    {
+      "question": "Est-il possible d'importer des données existantes ?",
+      "answer": "Oui, EduFlow permet l'importation de vos données depuis des fichiers Excel ou CSV via le module d'administration."
+    },
+    {
+      "question": "Comment contacter le support technique ?",
+      "answer": "Vous pouvez nous contacter via l'adresse e-mail support@eduflow-crm.com ou par téléphone au +216 71 123 456 pendant les heures de travail."
+    }
+  ],
+  "system_prompts_context": "Tu es l'assistant virtuel d'EduFlow. Utilise les informations de ce fichier pour répondre aux questions des utilisateurs concernant les services, les contacts et les tarifs. Sois toujours poli, professionnel et concis."
+}

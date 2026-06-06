@@ -29,7 +29,10 @@ export const NotificationProvider = ({ children }) => {
       void fetchNotifications();
     }, 0);
 
-    if (user && !echoInstance) {
+    // Temporarily disabled websocket connection to avoid console errors 
+    // since the websocket server (Reverb/WebSockets) is not running locally.
+    const enableWebSockets = import.meta.env.VITE_ENABLE_WEBSOCKETS === 'true';
+    if (user && !echoInstance && enableWebSockets) {
       echoInstance = new Echo({
         broadcaster: 'pusher',
         key: 'local_app_key',
@@ -37,7 +40,8 @@ export const NotificationProvider = ({ children }) => {
         wsPort: 6001,
         forceTLS: false,
         disableStats: true,
-        cluster: 'mt1'
+        cluster: 'mt1',
+        enabledTransports: ['ws', 'wss']
       });
     }
 
@@ -54,7 +58,7 @@ export const NotificationProvider = ({ children }) => {
         }
       });
       
-      const roleChannelName = `role.${user.role?.name}`;
+      const roleChannelName = `role.${user.role?.name ? user.role.name.toLowerCase().replace(/\s+/g, '') : ''}`;
       echoInstance.channel(roleChannelName).listen('.NotificationCreated', (e) => {
         if (e.notification) {
           setNotifications(prev => [e.notification, ...prev]);
@@ -82,7 +86,7 @@ export const NotificationProvider = ({ children }) => {
   };
 
   return (
-    <NotificationContext.Provider value={{ notifications, markAsRead, fetchNotifications }}>
+    <NotificationContext.Provider value={{ notifications, markAsRead, fetchNotifications, echoInstance }}>
       {children}
     </NotificationContext.Provider>
   );

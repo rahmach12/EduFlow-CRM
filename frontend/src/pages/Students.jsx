@@ -8,8 +8,11 @@ import EmptyState from '../components/EmptyState';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { useAuth } from '../hooks/useAuth';
 
 const Students = () => {
+  const { user } = useAuth();
+  const isTeacher = user?.role?.name === 'Teacher';
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -159,6 +162,15 @@ const Students = () => {
     toast.success('Excel exporté !');
   };
 
+  const groupedStudents = filteredStudents.reduce((acc, student) => {
+    const className = student.classe?.name || 'Unassigned';
+    if (!acc[className]) {
+      acc[className] = [];
+    }
+    acc[className].push(student);
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -173,9 +185,11 @@ const Students = () => {
           <button onClick={exportPDF} className="flex items-center gap-2 px-3 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-medium transition-all shadow-sm">
             <Download className="h-4 w-4" /> PDF
           </button>
-          <button onClick={() => openModal()} className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-medium transition-all shadow-md shadow-primary/20">
-            <Plus className="h-4 w-4" /> Ajouter
-          </button>
+          {!isTeacher && (
+            <button onClick={() => openModal()} className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-medium transition-all shadow-md shadow-primary/20">
+              <Plus className="h-4 w-4" /> Ajouter
+            </button>
+          )}
         </div>
       </div>
 
@@ -195,85 +209,92 @@ const Students = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-            <thead className="bg-slate-50 dark:bg-slate-900/50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Name
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Contact
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Class
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Date of Birth
-                </th>
-                <th scope="col" className="relative px-6 py-3">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-              {loading ? (
-                <SkeletonTable rows={5} cols={5} />
-              ) : filteredStudents.length === 0 ? (
-                <tr>
-                  <td colSpan="5">
-                    <EmptyState
-                      icon={Users}
-                      title={searchTerm ? 'Aucun résultat trouvé' : 'Aucun étudiant enregistré'}
-                      subtitle={searchTerm ? `Aucun étudiant ne correspond à "${searchTerm}"` : 'Commencez par ajouter votre premier étudiant.'}
-                      action={!searchTerm && <button onClick={() => openModal()} className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition">Ajouter un étudiant</button>}
-                    />
-                  </td>
-                </tr>
-              ) : (
-                filteredStudents.map((student) => (
-                  <tr key={student.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-                          {student.first_name?.charAt(0) || '?'}
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-slate-900 dark:text-white">{student.first_name} {student.last_name}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-slate-900 dark:text-white">{student.email}</div>
-                      <div className="text-sm text-slate-500 dark:text-slate-400">{student.phone || 'No phone'}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                        {student.classe ? student.classe.name : 'Unassigned'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                      {student.date_of_birth || 'Not set'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                      <button 
-                        onClick={() => openModal(student)}
-                        className="text-primary hover:text-primary/80"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(student.id)}
-                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="p-4 sm:p-6 space-y-8">
+          {loading ? (
+            <SkeletonTable rows={5} cols={5} fullTable={true} />
+          ) : filteredStudents.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title={searchTerm ? 'Aucun résultat trouvé' : 'Aucun étudiant enregistré'}
+              subtitle={searchTerm ? `Aucun étudiant ne correspond à "${searchTerm}"` : 'Commencez par ajouter votre premier étudiant.'}
+              action={!searchTerm && !isTeacher && <button onClick={() => openModal()} className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition">Ajouter un étudiant</button>}
+            />
+          ) : (
+            Object.keys(groupedStudents).sort().map(className => (
+              <div key={className} className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-lg">{className}</span>
+                  </h3>
+                  <span className="text-sm font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
+                    {groupedStudents[className].length} étudiant(s)
+                  </span>
+                </div>
+                
+                <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-xl">
+                  <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                    <thead className="bg-slate-50 dark:bg-slate-900/50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                          Name
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                          Contact
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                          Date of Birth
+                        </th>
+                        {!isTeacher && (
+                          <th scope="col" className="relative px-6 py-3">
+                            <span className="sr-only">Actions</span>
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+                      {groupedStudents[className].map((student) => (
+                        <tr key={student.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                                {student.first_name?.charAt(0) || '?'}
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-slate-900 dark:text-white">{student.first_name} {student.last_name}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-slate-900 dark:text-white">{student.email}</div>
+                            <div className="text-sm text-slate-500 dark:text-slate-400">{student.phone || 'No phone'}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
+                            {student.date_of_birth || 'Not set'}
+                          </td>
+                          {!isTeacher && (
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                              <button 
+                                onClick={() => openModal(student)}
+                                className="text-primary hover:text-primary/80"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(student.id)}
+                                className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

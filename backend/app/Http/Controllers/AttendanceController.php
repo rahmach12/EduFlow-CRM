@@ -46,7 +46,27 @@ class AttendanceController extends Controller
             'records.*.reason' => 'nullable|string'
         ]);
 
-        $teacherId = auth()->guard('api')->user()->teacher->id ?? 1;
+        $user = auth()->guard('api')->user();
+        if ($user && $user->role && $user->role->name === 'Teacher') {
+            $teacher = $user->teacher;
+            if (!$teacher) {
+                abort(403, 'Unauthorized action.');
+            }
+
+            // Verify class is assigned to this teacher
+            if (!$teacher->classes()->where('classes.id', $validated['class_id'])->exists()) {
+                abort(403, 'You are not authorized to log attendance for this class.');
+            }
+
+            // Verify subject is taught by this teacher
+            $teachesSubject = $teacher->subject_id == $validated['subject_id'] 
+                || $teacher->subjects()->where('subjects.id', $validated['subject_id'])->exists();
+            if (!$teachesSubject) {
+                abort(403, 'You are not authorized to log attendance for this subject.');
+            }
+        }
+
+        $teacherId = $user->teacher->id ?? 1;
 
         $session = AttendanceSession::create([
             'class_id' => $validated['class_id'],
@@ -99,5 +119,18 @@ class AttendanceController extends Controller
             'message' => 'Attendance session created!', 
             'session' => $session->load('records')
         ], 201);
+    }
+
+    public function show($id)
+    {
+        $session = AttendanceSession::with(['classe', 'subject', 'teacher.user', 'records.student.user'])->findOrFail($id);
+        $user = auth()->guard('api')->user();
+        if ($user && $user->role && $user->role->name === 'Teacher') {
+            $teacher = $user->teacher;
+            if (!$teacher || !$teacher->classes()->where('classes.id', $session->class_id)->exists()) {
+                abort(403, 'Unauthorized action.');
+            }
+        }
+        return response()->json($session);
     }
 }

@@ -14,18 +14,18 @@ class AcademicLevelSeeder extends Seeder
     {
         $levels = [
             // Prépa
-            ['name' => '1ère Prépa', 'cycle' => 'Prépa', 'slug' => 'prepa-1', 'rank' => 1],
-            ['name' => '2ème Prépa', 'cycle' => 'Prépa', 'slug' => 'prepa-2', 'rank' => 2],
+            ['name' => 'Prépa 1', 'cycle' => 'Prépa', 'slug' => 'prepa-1', 'rank' => 1],
+            ['name' => 'Prépa 2', 'cycle' => 'Prépa', 'slug' => 'prepa-2', 'rank' => 2],
             
             // Licence
             ['name' => 'Licence 1', 'cycle' => 'Licence', 'slug' => 'licence-1', 'rank' => 3],
             ['name' => 'Licence 2', 'cycle' => 'Licence', 'slug' => 'licence-2', 'rank' => 4],
-            ['name' => 'Terminale Licence', 'cycle' => 'Licence', 'slug' => 'licence-3', 'rank' => 5],
+            ['name' => 'Licence 3', 'cycle' => 'Licence', 'slug' => 'licence-3', 'rank' => 5],
             
             // Cycle Ingénieur
-            ['name' => 'Cycle 1', 'cycle' => 'Cycle Ingénieur', 'slug' => 'cycle-1', 'rank' => 6],
-            ['name' => 'Cycle 2', 'cycle' => 'Cycle Ingénieur', 'slug' => 'cycle-2', 'rank' => 7],
-            ['name' => 'Cycle 3', 'cycle' => 'Cycle Ingénieur', 'slug' => 'cycle-3', 'rank' => 8],
+            ['name' => 'Cycle Ingénieur 1', 'cycle' => 'Cycle Ingénieur', 'slug' => 'cycle-1', 'rank' => 6],
+            ['name' => 'Cycle Ingénieur 2', 'cycle' => 'Cycle Ingénieur', 'slug' => 'cycle-2', 'rank' => 7],
+            ['name' => 'Cycle Ingénieur 3', 'cycle' => 'Cycle Ingénieur', 'slug' => 'cycle-3', 'rank' => 8],
             
             // Master
             ['name' => 'Master 1', 'cycle' => 'Master', 'slug' => 'master-1', 'rank' => 9],

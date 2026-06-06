@@ -15,7 +15,18 @@ class StudentController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Student::with(['user', 'classe.faculty', 'classe.filiere', 'classe.academicLevel']);
+        $user = $request->user();
+        $query = Student::with(['user', 'classe.filiere', 'classe.academicLevel']);
+
+        if ($user && $user->role && $user->role->name === 'Teacher') {
+            $teacher = $user->teacher;
+            if ($teacher) {
+                $classIds = $teacher->classes()->pluck('classes.id')->toArray();
+                $query->whereIn('class_id', $classIds);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
 
         if ($request->filled('filiere_id')) {
             $query->whereHas('classe', fn ($classeQuery) => $classeQuery->where('filiere_id', $request->integer('filiere_id')));
@@ -90,14 +101,25 @@ class StudentController extends Controller
             'photo' => $request->photo
         ]);
 
-        Mail::to($user->email)->send(new AccountCreatedMail($user, $password));
+        try {
+            Mail::to($user->email)->send(new AccountCreatedMail($user, $password));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Failed to send account creation email to {$user->email}. Generated Password: {$password}. Error: " . $e->getMessage());
+        }
 
-        return response()->json($student->load('user', 'classe.faculty', 'classe.filiere', 'classe.academicLevel'), 201);
+        return response()->json($student->load('user', 'classe.filiere', 'classe.academicLevel'), 201);
     }
 
     public function show(Student $student)
     {
-        $student->load(['user', 'classe.faculty', 'classe.filiere', 'classe.academicLevel', 'notes', 'payments', 'internships']);
+        $user = request()->user();
+        if ($user && $user->role && $user->role->name === 'Teacher') {
+            $teacher = $user->teacher;
+            if (!$teacher || !$teacher->classes()->where('classes.id', $student->class_id)->exists()) {
+                abort(403, 'Unauthorized action.');
+            }
+        }
+        $student->load(['user', 'classe.filiere', 'classe.academicLevel', 'notes', 'payments', 'internships']);
         $payload = array_merge($student->toArray(), [
             'first_name' => $student->user->first_name,
             'last_name' => $student->user->last_name,
@@ -134,7 +156,7 @@ class StudentController extends Controller
 
         $student->update($request->only('class_id', 'matricule', 'date_of_birth', 'phone', 'address', 'photo'));
 
-        return response()->json($student->load('user', 'classe.faculty', 'classe.filiere', 'classe.academicLevel'));
+        return response()->json($student->load('user', 'classe.filiere', 'classe.academicLevel'));
     }
 
     public function destroy(Student $student)

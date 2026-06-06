@@ -7,9 +7,23 @@ use App\Models\Subject;
 
 class SubjectController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(Subject::all());
+        $user = $request->user();
+        $query = Subject::query();
+
+        if ($user && $user->role && $user->role->name === 'Teacher') {
+            $teacher = $user->teacher;
+            if ($teacher) {
+                $query->whereHas('teachers', function($q) use ($teacher) {
+                    $q->where('teachers.id', $teacher->id);
+                });
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        return response()->json($query->get());
     }
 
     public function store(Request $request)
@@ -30,6 +44,13 @@ class SubjectController extends Controller
 
     public function show(Subject $subject)
     {
+        $user = request()->user();
+        if ($user && $user->role && $user->role->name === 'Teacher') {
+            $teacher = $user->teacher;
+            if (!$teacher || !$subject->teachers()->where('teachers.id', $teacher->id)->exists()) {
+                abort(403, 'Unauthorized action.');
+            }
+        }
         return response()->json($subject->load('teachers'));
     }
 

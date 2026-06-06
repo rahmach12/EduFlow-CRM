@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, FileText, CalendarOff, School, User } from 'lucide-react';
+import { Home, FileText, Calendar, CalendarOff, School, User } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
@@ -11,8 +11,8 @@ const StudentMobile = () => {
   const navItems = [
     { name: t('nav.home'), href: '/', icon: Home },
     { name: t('nav.notes'), href: '/notes', icon: FileText },
-    { name: t('nav.schedule'), href: '/classes', icon: School },
-    { name: t('nav.absences'), href: '/absences', icon: CalendarOff },
+    { name: t('nav.schedule'), href: '/schedules', icon: Calendar },
+    { name: t('nav.absences'), href: '/attendance', icon: CalendarOff },
     { name: t('nav.profile'), href: '/profile', icon: User },
   ];
 

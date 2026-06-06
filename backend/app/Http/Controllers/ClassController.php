@@ -10,7 +10,19 @@ class ClassController extends Controller
 {
     public function index(Request $request)
     {
+        $user = $request->user();
         $query = Classe::with(['filiere', 'academicLevel'])->withCount('students');
+
+        if ($user && $user->role && $user->role->name === 'Teacher') {
+            $teacher = $user->teacher;
+            if ($teacher) {
+                $query->whereHas('teachers', function($q) use ($teacher) {
+                    $q->where('teachers.id', $teacher->id);
+                });
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
 
         if ($request->filled('filiere_id')) {
             $query->where('filiere_id', $request->integer('filiere_id'));
@@ -54,6 +66,13 @@ class ClassController extends Controller
 
     public function show(Classe $class)
     {
+        $user = request()->user();
+        if ($user && $user->role && $user->role->name === 'Teacher') {
+            $teacher = $user->teacher;
+            if (!$teacher || !$class->teachers()->where('teachers.id', $teacher->id)->exists()) {
+                abort(403, 'Unauthorized action.');
+            }
+        }
         return response()->json($class->load(['filiere', 'academicLevel', 'students.user']));
     }
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { GraduationCap, LogOut, Sun, Moon, Globe, Home, FileText, CalendarOff, School, User } from 'lucide-react';
+import { GraduationCap, LogOut, Sun, Moon, Globe, Home, FileText, Calendar, CalendarOff, School, User, MessageSquare, DollarSign, Briefcase } from 'lucide-react';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
 import StudentNotifications from '../components/StudentNotifications';
@@ -26,16 +26,33 @@ const StudentLayout = () => {
   };
 
   const toggleLanguage = () => {
-    const newLang = i18n.language === 'en' ? 'fr' : 'en';
+    let newLang = 'fr';
+    if (i18n.language === 'fr') newLang = 'en';
+    else if (i18n.language === 'en') newLang = 'ar';
+    else if (i18n.language === 'ar') newLang = 'fr';
+    
     i18n.changeLanguage(newLang);
   };
+
+  React.useEffect(() => {
+    if (i18n.language === 'ar') {
+      document.documentElement.dir = 'rtl';
+      document.documentElement.lang = 'ar';
+    } else {
+      document.documentElement.dir = 'ltr';
+      document.documentElement.lang = i18n.language;
+    }
+  }, [i18n.language]);
 
   const navItems = [
     { name: t('nav.home'), href: '/', icon: Home },
     { name: t('nav.notes'), href: '/notes', icon: FileText },
-    { name: t('nav.schedule'), href: '/classes', icon: School },
+    { name: t('nav.schedule'), href: '/schedules', icon: Calendar },
     { name: t('nav.absences'), href: '/attendance', icon: CalendarOff },
-    { name: 'Stages', href: '/internships', icon: User }, // Or use Briefcase if imported
+    { name: 'Stages', href: '/internships', icon: Briefcase },
+    { name: t('dashboard.cards.messages'), href: '/messages', icon: MessageSquare },
+    { name: t('dashboard.cards.balance'), href: '/finance', icon: DollarSign },
+    { name: t('dashboard.cards.documents'), href: '/documents', icon: FileText },
   ];
 
   return (

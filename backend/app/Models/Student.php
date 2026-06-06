@@ -48,6 +48,11 @@ class Student extends Model
         return $this->hasMany(Internship::class);
     }
 
+    public function documentRequests()
+    {
+        return $this->hasMany(DocumentRequest::class);
+    }
+
     public function faculty()
     {
         return $this->hasOneThrough(Faculty::class, Classe::class, 'id', 'id', 'class_id', 'faculty_id');
@@ -56,5 +61,10 @@ class Student extends Model
     public function filiere()
     {
         return $this->hasOneThrough(Filiere::class, Classe::class, 'id', 'id', 'class_id', 'filiere_id');
+    }
+
+    public function studentFinances()
+    {
+        return $this->hasMany(StudentFinance::class);
     }
 }

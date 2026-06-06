@@ -13,6 +13,7 @@ class Internship extends Model
         'student_id',
         'type',
         'title',
+        'description',
         'company_name',
         'supervisor_name',
         'supervisor_email',

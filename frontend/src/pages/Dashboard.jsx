@@ -164,8 +164,8 @@ const Dashboard = () => {
               <AlertTriangle className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Alertes metier</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Vue synthese des sujets qui peuvent impacter les operations ou la qualite du service.</p>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Recommandations de l'IA (Ollama)</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Analyse prédictive des risques académiques, financiers et propositions d'intervention rapide.</p>
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-3">

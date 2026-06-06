@@ -17,7 +17,6 @@ class InternshipController extends Controller
     {
         $query = Internship::with([
             'student.user',
-            'student.classe.faculty',
             'student.classe.filiere',
             'student.classe.academicLevel',
             'approvedBy',
@@ -49,6 +48,7 @@ class InternshipController extends Controller
             'student_id' => 'required|exists:students,id',
             'type' => 'nullable|string',
             'title' => 'nullable|string',
+            'description' => 'nullable|string',
             'company_name' => 'required|string',
             'supervisor_name' => 'nullable|string',
             'supervisor_email' => 'nullable|email',
@@ -72,6 +72,7 @@ class InternshipController extends Controller
         $validated = $request->validate([
             'type' => 'sometimes|string',
             'title' => 'nullable|string',
+            'description' => 'nullable|string',
             'company_name' => 'sometimes|string',
             'supervisor_name' => 'nullable|string',
             'supervisor_email' => 'nullable|email',

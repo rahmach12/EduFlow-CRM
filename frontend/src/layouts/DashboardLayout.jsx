@@ -4,6 +4,7 @@ import {
   Bell,
   BookOpen,
   Briefcase,
+  Calendar,
   CalendarOff,
   ChevronDown,
   DollarSign,
@@ -19,6 +20,7 @@ import {
   UserCheck,
   Users,
   X,
+  MessageSquare,
 } from 'lucide-react';
 import classNames from 'classnames';
 import GlobalSearch from '../components/GlobalSearch';
@@ -26,9 +28,11 @@ import { SearchProvider } from '../contexts/SearchContext';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../hooks/useNotifications';
 
+import { useTranslation } from 'react-i18next';
+
 const ACADEMIC_YEARS = ['2023-2024', '2024-2025', '2025-2026'];
 
-function NavItem({ item, isActive, onClick }) {
+function NavItem({ item, isActive, onClick, t }) {
   const Icon = item.icon;
 
   return (
@@ -48,7 +52,7 @@ function NavItem({ item, isActive, onClick }) {
           'mr-3 h-5 w-5 flex-shrink-0'
         )}
       />
-      {item.name}
+      {t(`nav.${item.name.toLowerCase()}`, item.name)}
     </Link>
   );
 }
@@ -57,16 +61,36 @@ const DashboardLayoutInner = () => {
   const { user, logout } = useAuth();
   const { notifications, markAsRead } = useNotifications();
   const location = useLocation();
+  const { t, i18n } = useTranslation();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isYearOpen, setIsYearOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [academicYear, setAcademicYear] = useState(() => localStorage.getItem('academic_year') || '2024-2025');
+  const [academicYear, setAcademicYear] = useState(() => localStorage.getItem('academic_year') || '2025-2026');
 
   const unreadCount = notifications.filter((notification) => !notification.is_read).length;
   const role = user?.role?.name;
   const isAdmin = role === 'Admin' || role === 'Administration';
+
+  useEffect(() => {
+    if (i18n.language === 'ar') {
+      document.documentElement.dir = 'rtl';
+      document.documentElement.lang = 'ar';
+    } else {
+      document.documentElement.dir = 'ltr';
+      document.documentElement.lang = i18n.language;
+    }
+  }, [i18n.language]);
+
+  const toggleLanguage = () => {
+    let newLang = 'fr';
+    if (i18n.language === 'fr') newLang = 'en';
+    else if (i18n.language === 'en') newLang = 'ar';
+    else if (i18n.language === 'ar') newLang = 'fr';
+    
+    i18n.changeLanguage(newLang);
+  };
 
   useEffect(() => {
     const handler = (event) => {
@@ -111,35 +135,42 @@ const DashboardLayoutInner = () => {
           { name: 'Enseignants', href: '/teachers', icon: UserCheck },
           { name: 'Filières', href: '/filieres', icon: Layers3 },
           { name: 'Classes', href: '/classes', icon: School },
+          { name: 'Emploi du Temps', href: '/schedules', icon: Calendar },
           { name: 'Matieres', href: '/subjects', icon: BookOpen },
           { name: 'Notes', href: '/notes', icon: FileText },
           { name: 'Absences', href: '/attendance', icon: CalendarOff },
           { name: 'Finance', href: '/finance', icon: DollarSign },
           { name: 'Stages', href: '/internships', icon: Briefcase },
+          { name: 'Messages', href: '/messages', icon: MessageSquare },
         ];
       case 'Finance Officer':
         return [
           { name: 'Dashboard', href: '/', icon: LayoutDashboard },
           { name: 'Finance', href: '/finance', icon: DollarSign },
+          { name: 'Messages', href: '/messages', icon: MessageSquare },
         ];
       case 'Internship Officer':
       case 'Internship Manager':
         return [
           { name: 'Tableau de Bord', href: '/internship-dashboard', icon: LayoutDashboard },
           { name: 'Toutes les Demandes', href: '/internships', icon: Briefcase },
+          { name: 'Messages', href: '/messages', icon: MessageSquare },
         ];
       case 'Scolarite':
         return [
           { name: 'Tableau de Bord', href: '/scolarite', icon: LayoutDashboard },
           { name: 'Etudiants', href: '/students', icon: Users },
+          { name: 'Emploi du Temps', href: '/schedules', icon: Calendar },
           { name: 'Absences', href: '/attendance', icon: CalendarOff },
           { name: 'Notes', href: '/notes', icon: FileText },
+          { name: 'Messages', href: '/messages', icon: MessageSquare },
         ];
       case 'Teacher':
         return [
           { name: 'Dashboard', href: '/', icon: LayoutDashboard },
           { name: 'Mes Classes', href: '/classes', icon: School },
           { name: 'Etudiants', href: '/students', icon: Users },
+          { name: 'Emploi du Temps', href: '/schedules', icon: Calendar },
           { name: 'Notes', href: '/notes', icon: FileText },
           { name: 'Absences', href: '/attendance', icon: CalendarOff },
         ];
@@ -148,7 +179,7 @@ const DashboardLayoutInner = () => {
           { name: 'Dashboard', href: '/', icon: LayoutDashboard },
           { name: 'Mes Notes', href: '/notes', icon: FileText },
           { name: 'Mes Absences', href: '/attendance', icon: CalendarOff },
-          { name: 'Mon Emploi du Temps', href: '/classes', icon: School },
+          { name: 'Mon Emploi du Temps', href: '/schedules', icon: Calendar },
           { name: 'Stages', href: '/internships', icon: Briefcase },
           { name: 'Finance', href: '/finance', icon: DollarSign },
           { name: 'Documents', href: '/documents', icon: FileText },
@@ -185,6 +216,7 @@ const DashboardLayoutInner = () => {
                 item={item}
                 isActive={location.pathname === item.href || (item.href !== '/' && location.pathname.startsWith(item.href))}
                 onClick={() => setIsMobileMenuOpen(false)}
+                t={t}
               />
             ))}
           </nav>
@@ -224,6 +256,14 @@ const DashboardLayoutInner = () => {
             <h1 className="hidden capitalize text-lg font-bold text-slate-800 dark:text-white sm:block">{pageTitle}</h1>
 
             <div className="ml-auto flex items-center gap-2">
+              <button
+                onClick={toggleLanguage}
+                className="flex items-center justify-center h-9 w-9 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 transition-all hover:border-primary/40 hover:text-primary dark:border-slate-700 dark:bg-slate-800 dark:hover:text-primary-light"
+                title="Toggle Language"
+              >
+                {i18n.language}
+              </button>
+
               {isAdmin && (
                 <button
                   onClick={(event) => {
@@ -332,7 +372,7 @@ const DashboardLayoutInner = () => {
         </div>
 
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          <Outlet />
+          <Outlet context={{ academicYear }} />
         </main>
       </div>
 

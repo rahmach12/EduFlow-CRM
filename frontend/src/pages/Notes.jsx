@@ -10,6 +10,62 @@ import { SkeletonTable } from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 import * as XLSX from 'xlsx';
 
+// ── PDF HEADERS & FOOTERS (Tunisian Standard Formatting) ────────────────────
+const drawTunisianHeader = (doc, title) => {
+  // Left: University Details
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('EduFlow University', 14, 18);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text('Etablissement Privé d\'Enseignement Supérieur', 14, 23);
+  doc.text('Tunis, Tunisie', 14, 27);
+
+  // Right: Ministry details
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('République Tunisienne', 140, 18);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text('Ministère de l\'Enseignement Supérieur', 140, 23);
+  doc.text('et de la Recherche Scientifique', 140, 27);
+
+  // Divider Line
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.5);
+  doc.line(14, 32, 196, 32);
+
+  // Document Title
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(30, 27, 75); // Dark Indigo
+  doc.text(title, 105, 45, { align: 'center' });
+  doc.setTextColor(0, 0, 0); // reset
+};
+
+const drawFooter = (doc, pageNum) => {
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8);
+  doc.setTextColor(150, 150, 150);
+  doc.text('Ce bulletin de notes officiel est généré électroniquement par le portail EduFlow CRM.', 14, 280);
+  doc.text(`Page ${pageNum}`, 196, 280, { align: 'right' });
+};
+
+const drawSignatureBlock = (doc, y, label = "Le Directeur de l'Établissement") => {
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('Fait à Tunis, le ' + new Date().toLocaleDateString('fr-FR'), 130, y);
+  doc.text(label, 130, y + 6);
+  
+  // Signature rectangle box
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.5);
+  doc.rect(130, y + 10, 55, 25);
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8);
+  doc.text('[Cachet & Signature]', 140, y + 24);
+};
+
 // ─── Student Personal Notes View ───────────────────────────────────────────
 const StudentNotesView = ({ user }) => {
   const [data, setData] = useState(null);
@@ -32,50 +88,68 @@ const StudentNotesView = ({ user }) => {
   }, [user]);
 
   const downloadMyBulletin = async () => {
-    const loadingToast = toast.loading('Generating PDF...');
+    const loadingToast = toast.loading('Génération du bulletin...');
     try {
       const studentId = user?.student?.id;
       const res = await api.get(`/students/${studentId}/average`);
       const d = res.data;
 
       const doc = new jsPDF();
-      doc.setFontSize(22);
-      doc.setTextColor(124, 58, 237);
-      doc.text('EduFlow — Bulletin de Notes', 14, 20);
+      drawTunisianHeader(doc, 'BULLETIN DE NOTES');
 
-      doc.setFontSize(12);
-      doc.setTextColor(0, 0, 0);
-      doc.text(`Étudiant(e): ${d.student}`, 14, 35);
-      doc.text(`Classe: ${user?.student?.classe?.name || '—'}`, 14, 42);
-      doc.text(`Date: ${new Date().toLocaleDateString('fr-FR')}`, 14, 49);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text(`Étudiant(e) : ${d.student}`, 14, 54);
+      doc.text(`Matricule : ${user?.student?.matricule || 'N/A'} | CIN : ${user?.cin || 'N/A'}`, 14, 60);
+      doc.text(`Classe : ${user?.student?.classe?.name || '—'}`, 14, 66);
+      doc.text(`Date de génération : ${new Date().toLocaleDateString('fr-FR')}`, 14, 72);
 
-      const tableData = d.subjects.map(s => [s.subject, s.coefficient.toString(), s.average?.toString() ?? 'N/A']);
+      const tableData = d.subjects.map(s => [
+        s.subject,
+        s.coefficient.toString(),
+        s.cc !== '-' ? s.cc.toString() : '—',
+        s.ds !== '-' ? s.ds.toString() : '—',
+        s.tp !== '-' ? s.tp.toString() : '—',
+        s.exam !== '-' ? s.exam.toString() : '—',
+        s.average !== '-' ? s.average.toString() : '—'
+      ]);
+
       doc.autoTable({
-        startY: 58,
-        head: [['Matière', 'Coefficient', 'Moyenne']],
+        startY: 78,
+        head: [['Matière / Module', 'Coef', 'CC', 'DS', 'TP', 'Exam', 'Moyenne']],
         body: tableData,
         theme: 'grid',
-        headStyles: { fillColor: [124, 58, 237] },
+        headStyles: { fillColor: [30, 27, 75] },
+        columnStyles: {
+          0: { cellWidth: 70 },
+          1: { halign: 'center' },
+          2: { halign: 'center' },
+          3: { halign: 'center' },
+          4: { halign: 'center' },
+          5: { halign: 'center' },
+          6: { halign: 'center', fontStyle: 'bold' }
+        }
       });
 
-      const finalY = doc.lastAutoTable.finalY + 10;
-      doc.setFontSize(14);
+      const y = doc.lastAutoTable.finalY + 12;
       doc.setFont('helvetica', 'bold');
-      doc.text(`Moyenne Générale: ${d.general_average} / 20`, 14, finalY);
       doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      const statusColor = d.status === 'Excellent' ? [22, 163, 74] : d.status === 'Weak' ? [220, 38, 38] : [0, 0, 0];
-      doc.setTextColor(...statusColor);
-      doc.text(`Appréciation: ${d.status}`, 14, finalY + 8);
+      doc.text(`Moyenne Générale : ${d.general_average} / 20`, 14, y);
 
-      doc.setTextColor(0, 0, 0);
-      if (d.suggestions?.length > 0) {
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Recommandations (IA):', 14, finalY + 18);
-        doc.setFont('helvetica', 'normal');
-        d.suggestions.forEach((s, i) => doc.text(`• ${s}`, 16, finalY + 26 + i * 7));
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Mention Académique : ${d.mention || '—'}`, 14, y + 6);
+      doc.text(`Taux d'absence cumulé : ${d.absence_rate}%`, 14, y + 12);
+
+      if (d.is_eliminated) {
+        doc.setTextColor(220, 38, 38);
+        doc.text('Statut : ÉLIMINÉ(E) POUR ABSENCES', 14, y + 18);
+        doc.setTextColor(0, 0, 0);
+      } else {
+        doc.text(`Résultat : ${d.general_average >= 10 ? 'Admis(e)' : 'Ajourné(e)'}`, 14, y + 18);
       }
+
+      drawSignatureBlock(doc, y + 28);
+      drawFooter(doc, 1);
 
       doc.save(`Bulletin_${d.student.replace(/\s+/g, '_')}.pdf`);
       toast.success('Bulletin téléchargé !', { id: loadingToast });
@@ -194,22 +268,52 @@ const StudentNotesView = ({ user }) => {
 const AdminNotesView = () => {
   const [students, setStudents] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  const [selectedClass, setSelectedClass] = useState(null);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [studentDetails, setStudentDetails] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ student_id: '', subject_id: '', type: 'CC', value: '' });
 
   const fetchData = async () => {
     try {
-      const [studentsRes, subjectsRes] = await Promise.all([api.get('/students'), api.get('/subjects')]);
+      const [studentsRes, subjectsRes, classesRes] = await Promise.all([
+        api.get('/students'), 
+        api.get('/subjects'),
+        api.get('/classes').catch(() => ({ data: [] }))
+      ]);
       setStudents(studentsRes.data);
       setSubjects(subjectsRes.data);
+      if (classesRes.data && classesRes.data.length > 0) {
+        setClasses(classesRes.data);
+      } else {
+        const uniqueClasses = [...new Set(studentsRes.data.map(s => s.classe?.name).filter(Boolean))];
+        setClasses(uniqueClasses.map((name, i) => ({ id: i, name })));
+      }
     } catch { toast.error('Failed to load data.'); }
     finally { setLoading(false); }
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  const handleSelectStudent = async (student) => {
+    setSelectedStudent(student);
+    setDetailsLoading(true);
+    try {
+      const res = await api.get(`/students/${student.id}/average`);
+      setStudentDetails(res.data);
+    } catch {
+      toast.error('Failed to load student details');
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -219,113 +323,295 @@ const AdminNotesView = () => {
       toast.success('Grade added successfully!');
       setIsModalOpen(false);
       setFormData({ student_id: '', subject_id: '', type: 'CC', value: '' });
+      if (selectedStudent) {
+        handleSelectStudent(selectedStudent);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to add grade.');
     } finally { setIsSubmitting(false); }
   };
 
   const generatePDF = async (studentId) => {
-    const t = toast.loading('Generating PDF...');
+    const t = toast.loading('Génération du bulletin...');
     try {
       const res = await api.get(`/students/${studentId}/average`);
       const d = res.data;
       const doc = new jsPDF();
-      doc.setFontSize(22); doc.setTextColor(124, 58, 237);
-      doc.text('EduFlow — Bulletin de Notes', 14, 20);
-      doc.setFontSize(12); doc.setTextColor(0, 0, 0);
-      doc.text(`Étudiant(e): ${d.student}`, 14, 35);
-      const tableData = d.subjects.map(s => [s.subject, s.coefficient.toString(), s.average?.toString() ?? 'N/A']);
-      doc.autoTable({ startY: 45, head: [['Matière', 'Coefficient', 'Moyenne']], body: tableData, theme: 'grid', headStyles: { fillColor: [124, 58, 237] } });
-      const y = doc.lastAutoTable.finalY + 10;
+      drawTunisianHeader(doc, 'BULLETIN DE NOTES');
+
+      const currentStudent = students.find(s => s.id === studentId);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text(`Étudiant(e) : ${d.student}`, 14, 54);
+      doc.text(`Matricule : ${currentStudent?.matricule || 'N/A'} | CIN : ${currentStudent?.user?.cin || 'N/A'}`, 14, 60);
+      doc.text(`Classe : ${currentStudent?.classe?.name || '—'}`, 14, 66);
+      doc.text(`Date de génération : ${new Date().toLocaleDateString('fr-FR')}`, 14, 72);
+
+      const tableData = d.subjects.map(s => [
+        s.subject,
+        s.coefficient.toString(),
+        s.cc !== '-' ? s.cc.toString() : '—',
+        s.ds !== '-' ? s.ds.toString() : '—',
+        s.tp !== '-' ? s.tp.toString() : '—',
+        s.exam !== '-' ? s.exam.toString() : '—',
+        s.average !== '-' ? s.average.toString() : '—'
+      ]);
+
+      doc.autoTable({
+        startY: 78,
+        head: [['Matière / Module', 'Coef', 'CC', 'DS', 'TP', 'Exam', 'Moyenne']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [30, 27, 75] },
+        columnStyles: {
+          0: { cellWidth: 70 },
+          1: { halign: 'center' },
+          2: { halign: 'center' },
+          3: { halign: 'center' },
+          4: { halign: 'center' },
+          5: { halign: 'center' },
+          6: { halign: 'center', fontStyle: 'bold' }
+        }
+      });
+
+      const y = doc.lastAutoTable.finalY + 12;
       doc.setFont('helvetica', 'bold');
-      doc.text(`Moyenne Générale: ${d.general_average} / 20`, 14, y);
+      doc.setFontSize(11);
+      doc.text(`Moyenne Générale : ${d.general_average} / 20`, 14, y);
+
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Mention Académique : ${d.mention || '—'}`, 14, y + 6);
+      doc.text(`Taux d'absence cumulé : ${d.absence_rate}%`, 14, y + 12);
+
+      if (d.is_eliminated) {
+        doc.setTextColor(220, 38, 38);
+        doc.text('Statut : ÉLIMINÉ(E) POUR ABSENCES', 14, y + 18);
+        doc.setTextColor(0, 0, 0);
+      } else {
+        doc.text(`Résultat : ${d.general_average >= 10 ? 'Admis(e)' : 'Ajourné(e)'}`, 14, y + 18);
+      }
+
+      drawSignatureBlock(doc, y + 28);
+      drawFooter(doc, 1);
+
       doc.save(`Bulletin_${d.student.replace(/\s+/g, '_')}.pdf`);
-      toast.success('PDF generated!', { id: t });
-    } catch { toast.error('Failed to generate PDF.', { id: t }); }
+      toast.success('Bulletin téléchargé !', { id: t });
+    } catch {
+      toast.error('Erreur lors de la génération du PDF.', { id: t });
+    }
   };
 
   const filteredStudents = students.filter(s =>
-    (`${s.first_name} ${s.last_name}`).toLowerCase().includes(searchTerm.toLowerCase())
+    (`${s.first_name} ${s.last_name}`).toLowerCase().includes(searchTerm.toLowerCase()) &&
+    (!selectedClass || s.classe?.name === selectedClass.name)
   );
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Grades & Notes</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Manage student grades and generate report cards.</p>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Gestion des Notes</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {selectedStudent ? `Notes de l'étudiant: ${selectedStudent.first_name} ${selectedStudent.last_name}` :
+             selectedClass ? `Classe: ${selectedClass.name}` :
+             'Sélectionnez une classe pour voir les étudiants.'}
+          </p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="flex items-center px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition shadow-md shadow-primary/20">
-          <Plus className="h-4 w-4 mr-2" /> Add Grade
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          {(selectedClass || selectedStudent) && (
+            <button 
+              onClick={() => {
+                if (selectedStudent) {
+                  setSelectedStudent(null);
+                  setStudentDetails(null);
+                } else {
+                  setSelectedClass(null);
+                }
+              }} 
+              className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition"
+            >
+              Retour
+            </button>
+          )}
+          <button onClick={() => setIsModalOpen(true)} className="flex items-center px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition shadow-md shadow-primary/20">
+            <Plus className="h-4 w-4 mr-2" /> Ajouter Note
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 shadow rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input type="text" className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:ring-primary focus:border-primary" placeholder="Search students..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+      {/* View 1: List of Classes */}
+      {!selectedClass && !selectedStudent && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {loading ? (
+            Array(6).fill(0).map((_, i) => <div key={i} className="h-24 bg-slate-100 dark:bg-slate-800 animate-pulse rounded-xl"></div>)
+          ) : classes.length === 0 ? (
+             <div className="col-span-full"><EmptyState icon={BookOpen} title="Aucune classe" subtitle="Il n'y a aucune classe disponible." /></div>
+          ) : classes.map(cls => (
+            <div 
+              key={cls.id} 
+              onClick={() => setSelectedClass(cls)}
+              className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md cursor-pointer transition-all hover:border-primary/50 group flex flex-col justify-between"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-white group-hover:text-primary transition-colors">{cls.name}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    {students.filter(s => s.classe?.name === cls.name).length} étudiant(s)
+                  </p>
+                </div>
+                <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                  <BookOpen className="h-5 w-5" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* View 2: List of Students in selected Class */}
+      {selectedClass && !selectedStudent && (
+        <div className="bg-white dark:bg-slate-800 shadow rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input type="text" className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:ring-primary focus:border-primary" placeholder="Rechercher un étudiant..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+              <thead className="bg-slate-50 dark:bg-slate-900/50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Étudiant</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Email</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+                {filteredStudents.length === 0 ? (
+                  <tr><td colSpan="3"><EmptyState icon={BookOpen} title="Aucun étudiant" subtitle="Aucun étudiant trouvé dans cette classe." /></td></tr>
+                ) : filteredStudents.map(student => (
+                  <tr key={student.id} onClick={() => handleSelectStudent(student)} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                          {student.first_name?.charAt(0)}
+                        </div>
+                        <span className="text-sm font-semibold text-slate-900 dark:text-white">{student.first_name} {student.last_name}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">{student.email}</td>
+                    <td className="px-6 py-4 text-right">
+                      <button onClick={(e) => { e.stopPropagation(); generatePDF(student.id); }} className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition">
+                        <Download className="h-3.5 w-3.5 mr-1" /> Bulletin
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-            <thead className="bg-slate-50 dark:bg-slate-900/50">
-              <tr>
-                {['Student', 'Class', 'Actions'].map(h => (
-                  <th key={h} className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-              {loading ? (
-                <SkeletonTable rows={5} cols={3} />
-              ) : filteredStudents.length === 0 ? (
-                <tr><td colSpan="3">
-                  <EmptyState
-                    icon={BookOpen}
-                    title={searchTerm ? 'Aucun résultat' : 'Aucune note enregistrée'}
-                    subtitle={searchTerm ? `Aucun étudiant ne correspond à "${searchTerm}"` : 'Ajoutez une note pour commencer.'}
-                    action={!searchTerm && <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 bg-primary text-white rounded-xl text-sm hover:bg-primary/90">Ajouter une note</button>}
-                  />
-                </td></tr>
-              ) : filteredStudents.map(student => (
-                <tr key={student.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-                        {student.first_name?.charAt(0)}
-                      </div>
-                      <span className="text-sm font-semibold text-slate-900 dark:text-white">{student.first_name} {student.last_name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">{student.classe?.name || '—'}</td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => generatePDF(student.id)} className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition">
-                      <Download className="h-3.5 w-3.5 mr-1" /> Bulletin PDF
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add New Grade">
+      {/* View 3: Student Details */}
+      {selectedStudent && (
+        <div className="space-y-6">
+          {detailsLoading ? (
+            <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div></div>
+          ) : !studentDetails ? (
+            <EmptyState icon={BookOpen} title="Détails indisponibles" subtitle="Impossible de charger les notes." />
+          ) : (
+            <div className="space-y-6">
+              {/* Subjects and individual notes table */}
+              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                  <h3 className="font-bold text-slate-800 dark:text-white">Détail des notes par matière</h3>
+                  <button onClick={() => generatePDF(selectedStudent.id)} className="text-primary hover:underline text-sm font-medium flex items-center gap-1">
+                    <Download className="h-4 w-4" /> Bulletin PDF
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                    <thead className="bg-slate-50 dark:bg-slate-900/50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Matière</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Notes Détaillées</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Moy. Matière</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                      {studentDetails.subjects?.map((sub, i) => (
+                        <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                          <td className="px-6 py-4">
+                            <p className="font-semibold text-slate-900 dark:text-white">{sub.subject}</p>
+                            <p className="text-xs text-slate-500">Coefficient: {sub.coefficient}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-wrap gap-2">
+                              {sub.notes && sub.notes.length > 0 ? sub.notes.map((n, idx) => (
+                                <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
+                                  {n.type}: <strong className="ml-1 text-primary">{n.value}</strong>
+                                </span>
+                              )) : <span className="text-xs text-slate-400 italic">Aucune note</span>}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold ${sub.average >= 10 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}>
+                              {sub.average ?? '—'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Averages Section */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm text-center">
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-2 uppercase tracking-wider">Semestre 1</p>
+                  <p className="text-4xl font-extrabold text-slate-800 dark:text-white">
+                    {studentDetails.sem1_average ?? 'N/A'}<span className="text-lg font-normal text-slate-400">/20</span>
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm text-center">
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-2 uppercase tracking-wider">Semestre 2</p>
+                  <p className="text-4xl font-extrabold text-slate-800 dark:text-white">
+                    {studentDetails.sem2_average ?? 'N/A'}<span className="text-lg font-normal text-slate-400">/20</span>
+                  </p>
+                </div>
+                <div className={`p-6 rounded-2xl shadow-lg text-center text-white bg-gradient-to-br ${studentDetails.general_average >= 10 ? 'from-emerald-500 to-teal-600' : 'from-red-500 to-rose-600'}`}>
+                  <p className="text-white/80 text-sm font-medium mb-2 uppercase tracking-wider">Moyenne Générale</p>
+                  <p className="text-4xl font-extrabold">
+                    {studentDetails.general_average ?? 'N/A'}<span className="text-lg font-normal text-white/70">/20</span>
+                  </p>
+                  <p className="text-sm font-medium bg-white/20 inline-block px-3 py-1 rounded-full mt-3">
+                    {studentDetails.status || (studentDetails.general_average >= 10 ? 'Admis' : 'Refusé')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Ajouter une Note">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Student *</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Étudiant *</label>
             <select required name="student_id" value={formData.student_id} onChange={e => setFormData({ ...formData, student_id: e.target.value })}
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary">
-              <option value="">Select student...</option>
-              {students.map(s => <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>)}
+              <option value="">Sélectionner un étudiant...</option>
+              {students.map(s => <option key={s.id} value={s.id}>{s.first_name} {s.last_name} {s.classe ? `(${s.classe.name})` : ''}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Subject *</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Matière *</label>
             <select required name="subject_id" value={formData.subject_id} onChange={e => setFormData({ ...formData, subject_id: e.target.value })}
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary">
-              <option value="">Select subject...</option>
+              <option value="">Sélectionner une matière...</option>
               {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
@@ -341,15 +627,15 @@ const AdminNotesView = () => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Grade (/20) *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Note (/20) *</label>
               <input required type="number" step="0.25" min="0" max="20" value={formData.value} onChange={e => setFormData({ ...formData, value: e.target.value })}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary" />
             </div>
           </div>
-          <div className="flex justify-end gap-3 mt-4">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">Cancel</button>
+          <div className="flex justify-end gap-3 mt-5">
+            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">Annuler</button>
             <button type="submit" disabled={isSubmitting} className="px-4 py-2 text-sm text-white bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50">
-              {isSubmitting ? 'Saving...' : 'Save Grade'}
+              {isSubmitting ? 'Enregistrement...' : 'Enregistrer'}
             </button>
           </div>
         </form>

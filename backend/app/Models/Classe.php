@@ -34,4 +34,14 @@ class Classe extends Model
     {
         return $this->hasMany(Student::class, 'class_id');
     }
+
+    public function teachers()
+    {
+        return $this->belongsToMany(Teacher::class, 'class_teacher', 'class_id', 'teacher_id')->withTimestamps();
+    }
+
+    public function groups()
+    {
+        return $this->hasMany(Group::class, 'class_id');
+    }
 }

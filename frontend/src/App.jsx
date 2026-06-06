@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import DashboardLayout from './layouts/DashboardLayout';
 import StudentLayout from './layouts/StudentLayout';
+import BlockedStudentLayout from './layouts/BlockedStudentLayout';
 import TeacherLayout from './layouts/TeacherLayout';
 import { NotificationProvider } from './contexts/NotificationContext';
 import Dashboard from './pages/Dashboard';
@@ -25,6 +26,9 @@ import Profile from './pages/Profile';
 import InternshipDashboard from './pages/InternshipDashboard';
 import ScolariteDashboard from './pages/ScolariteDashboard';
 import UserManagement from './pages/UserManagement';
+import Schedules from './pages/Schedules';
+
+import Chatbot from './components/Chatbot';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -47,14 +51,19 @@ const RoleBasedLayout = () => {
   const { user } = useAuth();
   const role = user?.role?.name;
 
-  if (role === 'Student') return <StudentLayout />;
+  if (role === 'Student') {
+    if (user?.student?.studentFinances?.financial_status === 'Administrative Block') {
+      return <BlockedStudentLayout />;
+    }
+    return <StudentLayout />;
+  }
   if (role === 'Teacher') return <TeacherLayout />;
   return <DashboardLayout />;  // Admin / Administration
 };
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Toaster position="top-right" toastOptions={{ style: { borderRadius: '12px', background: '#1e1b4b', color: '#fff' } }} />
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -64,6 +73,7 @@ function App() {
           <ProtectedRoute>
             <NotificationProvider>
               <RoleBasedLayout />
+              <Chatbot />
             </NotificationProvider>
           </ProtectedRoute>
         }>
@@ -82,6 +92,7 @@ function App() {
           <Route path="internship-dashboard" element={<InternshipDashboard />} />
           <Route path="scolarite" element={<ScolariteDashboard />} />
           <Route path="users" element={<UserManagement />} />
+          <Route path="schedules" element={<Schedules />} />
           <Route path="profile" element={<Profile />} />
         </Route>
 

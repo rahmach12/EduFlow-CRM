@@ -1,0 +1,36 @@
+{
+  "greeting": "مرحباً",
+  "dashboard": {
+    "title": "لوحة القيادة",
+    "actualites": "الأخبار والإعلانات",
+    "cards": {
+      "student_card": "بطاقة الطالب",
+      "messages": "الرسائل",
+      "results": "النتائج",
+      "absences": "الغيابات",
+      "schedule": "الجدول الزمني",
+      "my_group": "مجموعتي",
+      "suggestions": "اقتراحات",
+      "languages": "اللغات",
+      "documents": "الوثائق",
+      "balance": "رصيدي",
+      "surveys": "استبيانات",
+      "epi_sup": "EPI Sup"
+    }
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "notes": "الدرجات",
+    "absences": "الغيابات",
+    "schedule": "الجدول الزمني",
+    "profile": "الملف الشخصي",
+    "logout": "تسجيل الخروج"
+  },
+  "messages": {
+    "no_news": "لا توجد إعلانات جديدة في الوقت الحالي.",
+    "new_notification": "إعلان جديد",
+    "debug": "معلومات تصحيح الأخطاء (مؤقت)",
+    "role": "الدور",
+    "name": "الاسم"
+  }
+}

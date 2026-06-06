@@ -18,7 +18,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-4 sm:p-5">
+        <div className="p-4 sm:p-5 max-h-[calc(100vh-10rem)] overflow-y-auto">
           {children}
         </div>
       </div>

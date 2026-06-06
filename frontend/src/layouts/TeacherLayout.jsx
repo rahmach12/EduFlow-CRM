@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { GraduationCap, LogOut, Sun, Moon, Globe, Home, FileText, CalendarOff, School, Users, LayoutDashboard } from 'lucide-react';
+import { GraduationCap, LogOut, Sun, Moon, Globe, Home, FileText, Calendar, CalendarOff, School, Users, LayoutDashboard, MessageSquare } from 'lucide-react';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
 import StudentNotifications from '../components/StudentNotifications';
@@ -27,9 +27,11 @@ const TeacherLayout = () => {
   const navItems = [
     { name: 'Tableau de Bord', href: '/', icon: LayoutDashboard },
     { name: 'Mes Classes', href: '/classes', icon: School },
+    { name: 'Emploi du Temps', href: '/schedules', icon: Calendar },
     { name: 'Étudiants', href: '/students', icon: Users },
     { name: 'Saisir Notes', href: '/notes', icon: FileText },
     { name: 'Absences', href: '/attendance', icon: CalendarOff },
+    { name: 'Messages', href: '/messages', icon: MessageSquare },
   ];
 
   return (
@@ -117,9 +119,9 @@ const TeacherLayout = () => {
         <div className="flex justify-around items-center h-16">
           {[
             { href: '/', icon: Home, label: 'Accueil' },
+            { href: '/schedules', icon: Calendar, label: 'Planning' },
             { href: '/notes', icon: FileText, label: 'Notes' },
             { href: '/attendance', icon: CalendarOff, label: 'Absences' },
-            { href: '/classes', icon: School, label: 'Classes' },
             { href: '/students', icon: Users, label: 'Étudiants' },
           ].map(item => {
             const isActive = location.pathname === item.href;

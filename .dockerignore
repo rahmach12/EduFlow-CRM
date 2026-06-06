@@ -1,0 +1,17 @@
+# Root-level .dockerignore
+# Excludes files that don't need to be in the Docker build context
+
+.git
+.github
+.idea
+.vscode
+*.md
+
+# Never include local env or secrets — the entrypoint writes .env at runtime
+.env
+.env.docker
+backend/.env
+frontend/.env
+
+# Exclude node_modules at root level (not needed by any Dockerfile)
+node_modules

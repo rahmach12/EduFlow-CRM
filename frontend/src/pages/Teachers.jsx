@@ -12,6 +12,7 @@ import * as XLSX from 'xlsx';
 export default function Teachers() {
   const [teachers, setTeachers] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [classes, setClasses] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -29,20 +30,23 @@ export default function Teachers() {
     address: '',
     date_of_birth: '',
     gender: '',
-    subject_id: ''
+    class_ids: [],
+    subject_ids: []
   });
 
   const fetchTeachers = async () => {
     try {
-      const [teachersRes, subjectsRes] = await Promise.all([
+      const [teachersRes, subjectsRes, classesRes] = await Promise.all([
         api.get('/teachers'),
-        api.get('/subjects')
+        api.get('/subjects'),
+        api.get('/classes')
       ]);
       setTeachers(teachersRes.data);
       setSubjects(subjectsRes.data);
+      setClasses(classesRes.data);
     } catch (error) {
-      console.error("Error fetching teachers", error);
-      toast.error("Failed to load teachers.");
+      console.error("Error fetching data", error);
+      toast.error("Failed to load teachers data.");
     } finally {
       setLoading(false);
     }
@@ -65,12 +69,23 @@ export default function Teachers() {
         address: teacher.address || '',
         date_of_birth: teacher.date_of_birth || '',
         gender: teacher.gender || '',
-        subject_id: teacher.subject_id || ''
+        class_ids: teacher.class_ids || [],
+        subject_ids: teacher.subject_ids || []
       });
     } else {
       setCurrentTeacher(null);
       setFormData({
-        first_name: '', last_name: '', cin: '', email: '', password: '', phone: '', address: '', date_of_birth: '', gender: '', subject_id: ''
+        first_name: '',
+        last_name: '',
+        cin: '',
+        email: '',
+        password: '',
+        phone: '',
+        address: '',
+        date_of_birth: '',
+        gender: '',
+        class_ids: [],
+        subject_ids: []
       });
     }
     setIsModalOpen(true);
@@ -80,19 +95,34 @@ export default function Teachers() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleCheckboxChange = (e, field) => {
+    const { value, checked } = e.target;
+    const id = parseInt(value, 10);
+    const currentList = formData[field] || [];
+    let updatedList;
+    if (checked) {
+      updatedList = [...currentList, id];
+    } else {
+      updatedList = currentList.filter(item => item !== id);
+    }
+    setFormData({ ...formData, [field]: updatedList });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     
     try {
+      const payload = { ...formData };
+      if (currentTeacher && !payload.password) {
+        delete payload.password;
+      }
+      
       if (currentTeacher) {
-        const payload = { ...formData };
-        if (!payload.password) delete payload.password;
-        
         await api.put(`/teachers/${currentTeacher.id}`, payload);
         toast.success("Teacher updated successfully!");
       } else {
-        await api.post('/teachers', formData);
+        await api.post('/teachers', payload);
         toast.success("Teacher created successfully!");
       }
       setIsModalOpen(false);
@@ -130,8 +160,15 @@ export default function Teachers() {
     doc.text(`Exporté le ${new Date().toLocaleDateString('fr-FR')} · ${filteredTeachers.length} enseignant(s)`, 14, 28);
     doc.autoTable({
       startY: 35,
-      head: [['Nom', 'Prénom', 'Email', 'Matière', 'Téléphone']],
-      body: filteredTeachers.map(t => [t.last_name, t.first_name, t.email, t.subject?.name || '—', t.phone || '—']),
+      head: [['Nom', 'Prénom', 'Email', 'Matières', 'Classes', 'Téléphone']],
+      body: filteredTeachers.map(t => [
+        t.last_name, 
+        t.first_name, 
+        t.email, 
+        t.subjects && t.subjects.length > 0 ? t.subjects.map(s => s.name).join(', ') : (t.subject?.name || '—'),
+        t.classes && t.classes.length > 0 ? t.classes.map(c => c.name).join(', ') : '—',
+        t.phone || '—'
+      ]),
       headStyles: { fillColor: [124, 58, 237] },
       alternateRowStyles: { fillColor: [249, 247, 255] },
       theme: 'grid',
@@ -142,8 +179,12 @@ export default function Teachers() {
 
   const exportExcel = () => {
     const data = filteredTeachers.map(t => ({
-      'Nom': t.last_name, 'Prénom': t.first_name, 'Email': t.email,
-      'Matière': t.subject?.name || '', 'Téléphone': t.phone || '',
+      'Nom': t.last_name, 
+      'Prénom': t.first_name, 
+      'Email': t.email,
+      'Matières': t.subjects && t.subjects.length > 0 ? t.subjects.map(s => s.name).join(', ') : (t.subject?.name || ''),
+      'Classes': t.classes && t.classes.length > 0 ? t.classes.map(c => c.name).join(', ') : '',
+      'Téléphone': t.phone || '',
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -196,7 +237,7 @@ export default function Teachers() {
                   Name & Contact
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Details
+                  Assignments & Details
                 </th>
                 <th scope="col" className="relative px-6 py-3">
                   <span className="sr-only">Actions</span>
@@ -232,12 +273,21 @@ export default function Teachers() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4">
                       <div className="text-sm text-slate-900 dark:text-white">
-                        Subject: {teacher.subject ? teacher.subject.name : 'Unassigned'}
+                        <span className="font-semibold text-slate-500 dark:text-slate-400">Matières: </span>
+                        {teacher.subjects && teacher.subjects.length > 0 
+                          ? teacher.subjects.map(s => s.name).join(', ') 
+                          : (teacher.subject ? teacher.subject.name : 'Aucune')}
                       </div>
-                      <div className="text-sm text-slate-500 dark:text-slate-400">
-                        Date of Birth: {teacher.date_of_birth || 'N/A'}
+                      <div className="text-sm text-slate-900 dark:text-white mt-1">
+                        <span className="font-semibold text-slate-500 dark:text-slate-400">Classes: </span>
+                        {teacher.classes && teacher.classes.length > 0 
+                          ? teacher.classes.map(c => c.name).join(', ') 
+                          : 'Aucune'}
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Né(e) le: {teacher.date_of_birth || 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
@@ -265,19 +315,19 @@ export default function Teachers() {
       <Modal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
-        title={currentTeacher ? "Edit Teacher" : "Add New Teacher"}
+        title={currentTeacher ? "Modifier Enseignant" : "Ajouter Nouveau Enseignant"}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">First Name *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Prénom *</label>
               <input 
                 required type="text" name="first_name" value={formData.first_name} onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Last Name *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nom *</label>
               <input 
                 required type="text" name="last_name" value={formData.last_name} onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
@@ -286,15 +336,15 @@ export default function Teachers() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">CIN (ID Number) *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">CIN *</label>
               <input 
                 required={!currentTeacher} disabled={!!currentTeacher} type="text" name="cin" value={formData.cin} onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary disabled:opacity-50"
-                placeholder={currentTeacher ? "Cannot be changed" : "Entry national ID"}
+                placeholder={currentTeacher ? "Non modifiable" : "CIN de l'enseignant"}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email Address *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Adresse Email *</label>
               <input 
                 required type="email" name="email" value={formData.email} onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
@@ -305,7 +355,7 @@ export default function Teachers() {
           {currentTeacher && (
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Password (Leave empty to keep current)
+                Mot de passe (Laissez vide pour conserver l'actuel)
               </label>
               <input 
                 type="password" name="password" value={formData.password} onChange={handleInputChange}
@@ -315,47 +365,77 @@ export default function Teachers() {
           )}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Téléphone *</label>
               <input 
                 required type="text" name="phone" value={formData.phone} onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date of Birth *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date de Naissance *</label>
               <input 
                 required type="date" name="date_of_birth" value={formData.date_of_birth} onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
               />
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Subject *</label>
-              <select 
-                required name="subject_id" value={formData.subject_id} onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
-              >
-                <option value="">Select a subject...</option>
-                {subjects.map(sub => (
-                  <option key={sub.id} value={sub.id}>{sub.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Gender</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Genre</label>
               <select 
                 name="gender" value={formData.gender} onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
               >
-                <option value="">Select gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
+                <option value="">Sélectionner</option>
+                <option value="Male">Masculin</option>
+                <option value="Female">Féminin</option>
               </select>
             </div>
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Address *</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Matières Enseignées *
+            </label>
+            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900">
+              {subjects.map((sub) => (
+                <label key={sub.id} className="flex items-center space-x-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    value={sub.id}
+                    checked={formData.subject_ids?.includes(sub.id)}
+                    onChange={(e) => handleCheckboxChange(e, 'subject_ids')}
+                    className="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary h-4 w-4"
+                  />
+                  <span>{sub.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Classes Assignées
+            </label>
+            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900">
+              {classes.map((classe) => (
+                <label key={classe.id} className="flex items-center space-x-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    value={classe.id}
+                    checked={formData.class_ids?.includes(classe.id)}
+                    onChange={(e) => handleCheckboxChange(e, 'class_ids')}
+                    className="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary h-4 w-4"
+                  />
+                  <span>{classe.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Adresse *</label>
             <textarea 
               required name="address" value={formData.address} onChange={handleInputChange} rows="2"
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
@@ -367,13 +447,13 @@ export default function Teachers() {
               type="button" onClick={() => setIsModalOpen(false)}
               className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700"
             >
-              Cancel
+              Annuler
             </button>
             <button 
               type="submit" disabled={isSubmitting}
               className="px-4 py-2 text-sm font-medium text-white bg-primary border border-transparent rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
             >
-              {isSubmitting ? 'Saving...' : 'Save'}
+              {isSubmitting ? 'Enregistrement...' : 'Enregistrer'}
             </button>
           </div>
         </form>

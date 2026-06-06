@@ -7,6 +7,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC?style=flat&logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
 [![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?style=flat&logo=mysql&logoColor=white)](https://mysql.com)
 [![JWT](https://img.shields.io/badge/Auth-JWT-000000?style=flat&logo=json-web-tokens)](https://jwt.io)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
 
 ---
 
@@ -89,7 +90,65 @@ pfe/
 
 ---
 
-## ⚙️ Installation
+## 🐳 Démarrage rapide avec Docker (Recommandé)
+
+La méthode la plus simple pour démarrer **tout le projet en une commande** (backend + frontend + base de données).
+
+### Prérequis
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows / macOS / Linux)
+
+### 1. Configurer l'environnement
+
+```bash
+# À la racine du projet
+cp .env.example .env
+```
+
+Éditez `.env` si nécessaire (les valeurs par défaut fonctionnent immédiatement).
+
+### 2. Lancer la stack complète
+
+```bash
+docker compose up -d --build
+```
+
+Docker va :
+1. 🗄️ Démarrer **MySQL 8** et attendre qu'il soit prêt
+2. 🔑 Générer automatiquement `APP_KEY` et `JWT_SECRET` si absents
+3. 🏗️ Exécuter les **migrations** (`php artisan migrate`)
+4. 🌱 Charger les **données de démo** (`php artisan db:seed`) si `SEED_DATABASE=true`
+5. ⚡ Démarrer le **backend Laravel** sur [http://localhost:8000](http://localhost:8000)
+6. 🌐 Démarrer le **frontend React** sur [http://localhost:3000](http://localhost:3000)
+
+### 3. Vérifier l'état des conteneurs
+
+```bash
+docker compose ps
+docker compose logs -f backend   # logs Laravel en temps réel
+```
+
+### 4. Arrêter la stack
+
+```bash
+docker compose down            # Arrêt (données conservées dans le volume)
+docker compose down -v         # Arrêt + suppression des données
+```
+
+### Variables d'environnement Docker clés
+
+| Variable | Défaut | Description |
+|---|---|---|
+| `SEED_DATABASE` | `true` | Charger les données démo au premier boot |
+| `APP_KEY` | auto-généré | Clé Laravel (laisser vide = génération auto) |
+| `JWT_SECRET` | auto-généré | Secret JWT (laisser vide = génération auto) |
+| `MAIL_MAILER` | `log` | Emails écrits dans les logs (pas de SMTP requis) |
+| `DB_DATABASE` | `eduflow` | Nom de la base MySQL |
+
+> 💡 Les emails sont écrits dans les logs (`docker compose logs backend`) quand `MAIL_MAILER=log`. Pour recevoir de vrais emails, configurez `MAIL_MAILER=smtp` avec vos identifiants Mailtrap / Gmail.
+
+---
+
+## ⚙️ Installation Locale (sans Docker)
 
 ### Prérequis
 

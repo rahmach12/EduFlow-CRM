@@ -87,10 +87,12 @@ class AuthController extends Controller
     {
         return response()->json(auth()->guard('api')->user()->load([
             'role',
-            'student.classe.faculty',
             'student.classe.filiere',
             'student.classe.academicLevel',
+            'student.studentFinances',
             'teacher.subject',
+            'teacher.classes',
+            'teacher.subjects',
         ]));
     }
 
@@ -109,10 +111,12 @@ class AuthController extends Controller
             'expires_in' => auth()->guard('api')->factory()->getTTL() * 60,
             'user' => auth()->guard('api')->user()->load([
                 'role',
-                'student.classe.faculty',
                 'student.classe.filiere',
                 'student.classe.academicLevel',
+                'student.studentFinances',
                 'teacher.subject',
+                'teacher.classes',
+                'teacher.subjects',
             ])
         ]);
     }

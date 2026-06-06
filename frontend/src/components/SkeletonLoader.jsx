@@ -46,13 +46,29 @@ export const SkeletonTableRow = ({ cols = 4 }) => (
 );
 
 // ─── Full Table Skeleton (n rows) ─────────────────────────────────────────────
-export const SkeletonTable = ({ rows = 5, cols = 4 }) => (
-  <>
-    {Array.from({ length: rows }).map((_, i) => (
-      <SkeletonTableRow key={i} cols={cols} />
-    ))}
-  </>
-);
+export const SkeletonTable = ({ rows = 5, cols = 4, fullTable = false }) => {
+  const content = (
+    <>
+      {Array.from({ length: rows }).map((_, i) => (
+        <SkeletonTableRow key={i} cols={cols} />
+      ))}
+    </>
+  );
+
+  if (fullTable) {
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-700">
+          <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
+            {content}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return content;
+};
 
 // ─── Card Grid Skeleton ───────────────────────────────────────────────────────
 export const SkeletonCardGrid = ({ count = 4 }) => (

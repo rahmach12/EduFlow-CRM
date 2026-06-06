@@ -1,0 +1,90 @@
+
+services:
+  # ── Database ─────────────────────────────────────────────────────────────────
+  database:
+    image: mysql:8.0
+    container_name: eduflow_database
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-school_crm}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_secret}
+      MYSQL_USER: ${DB_USERNAME:-eduflow_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-eduflow_password}
+    ports:
+      - "3307:3306"
+    volumes:
+      - eduflow_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-root_secret}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── Laravel Backend ───────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: eduflow_backend
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    environment:
+      APP_NAME: "EduFlow CRM"
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost:8000}
+      APP_KEY: ${APP_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-}
+
+      DB_CONNECTION: mysql
+      DB_HOST: database
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-school_crm}
+      DB_USERNAME: ${DB_USERNAME:-eduflow_user}
+      DB_PASSWORD: ${DB_PASSWORD:-eduflow_password}
+
+      CACHE_STORE: database
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: database
+      SESSION_LIFETIME: 120
+
+      # Mail — use "log" in dev so no SMTP needed; swap for smtp in production
+      MAIL_MAILER: ${MAIL_MAILER:-log}
+      MAIL_HOST: ${MAIL_HOST:-127.0.0.1}
+      MAIL_PORT: ${MAIL_PORT:-2525}
+      MAIL_USERNAME: ${MAIL_USERNAME:-null}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-null}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-hello@eduflow.school}
+      MAIL_FROM_NAME: "EduFlow CRM"
+
+      # Set to "true" to run db:seed on first container start
+      SEED_DATABASE: ${SEED_DATABASE:-false}
+    volumes:
+      - eduflow_storage:/var/www/html/storage/app
+      - eduflow_logs:/var/www/html/storage/logs
+    depends_on:
+      database:
+        condition: service_healthy
+
+  # ── React Frontend (Nginx) ────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        # The frontend calls /api/* which Nginx proxies to the backend service.
+        # No need to hard-code a host; relative path works inside Docker.
+        VITE_API_URL: /api
+    container_name: eduflow_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  eduflow_db_data:
+  eduflow_storage:
+  eduflow_logs:

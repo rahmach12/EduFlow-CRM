@@ -16,6 +16,7 @@ const StudentInternshipsView = () => {
   const [uploadingId, setUploadingId] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
+    description: '',
     company_name: '',
     supervisor_name: '',
     supervisor_email: '',
@@ -67,7 +68,7 @@ const StudentInternshipsView = () => {
       });
       toast.success('Demande de stage soumise');
       setIsModalOpen(false);
-      setFormData({ title: '', company_name: '', supervisor_name: '', supervisor_email: '', start_date: '', end_date: '' });
+      setFormData({ title: '', description: '', company_name: '', supervisor_name: '', supervisor_email: '', start_date: '', end_date: '' });
       fetchInternships();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Soumission impossible');
@@ -138,7 +139,10 @@ const StudentInternshipsView = () => {
               <div>
                 <p className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">{internship.type}</p>
                 <h3 className="mt-3 text-lg font-bold text-slate-800 dark:text-white">{internship.company_name}</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">{internship.title || 'Sujet non precise'}</p>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{internship.title || 'Sujet non precise'}</p>
+                {internship.description && (
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 italic">Description : {internship.description}</p>
+                )}
               </div>
               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${internship.status === 'Approved' ? 'bg-emerald-100 text-emerald-700' : internship.status === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
                 {internship.status}
@@ -180,6 +184,9 @@ const StudentInternshipsView = () => {
           </div>
           <Field label="Sujet / titre">
             <input value={formData.title} onChange={(event) => setFormData({ ...formData, title: event.target.value })} className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+          </Field>
+          <Field label="Description du projet / sujet">
+            <textarea value={formData.description} onChange={(event) => setFormData({ ...formData, description: event.target.value })} className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white font-sans" rows="3" placeholder="Decrivez brievement le projet ou le sujet du stage..." />
           </Field>
           <Field label="Entreprise">
             <input value={formData.company_name} onChange={(event) => setFormData({ ...formData, company_name: event.target.value })} required className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />

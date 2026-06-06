@@ -15,7 +15,7 @@ class TeacherController extends Controller
 {
     public function index()
     {
-        $teachers = Teacher::with(['user', 'subject'])->get()->map(function ($teacher) {
+        $teachers = Teacher::with(['user', 'subject', 'classes', 'subjects'])->get()->map(function ($teacher) {
             return [
                 'id' => $teacher->id,
                 'user_id' => $teacher->user_id,
@@ -30,7 +30,11 @@ class TeacherController extends Controller
                 'photo' => $teacher->photo,
                 'subject_id' => $teacher->subject_id,
                 'subject' => $teacher->subject,
-                'user' => clone $teacher->user
+                'user' => clone $teacher->user,
+                'class_ids' => $teacher->classes->pluck('id')->toArray(),
+                'classes' => $teacher->classes,
+                'subject_ids' => $teacher->subjects->pluck('id')->toArray(),
+                'subjects' => $teacher->subjects,
             ];
         });
         return response()->json($teachers);
@@ -48,7 +52,11 @@ class TeacherController extends Controller
             'date_of_birth' => 'required|date',
             'gender' => 'nullable|in:Male,Female',
             'subject_id' => 'nullable|exists:subjects,id',
-            'photo' => 'nullable|string'
+            'photo' => 'nullable|string',
+            'class_ids' => 'nullable|array',
+            'class_ids.*' => 'exists:classes,id',
+            'subject_ids' => 'nullable|array',
+            'subject_ids.*' => 'exists:subjects,id'
         ]);
 
         $password = Str::random(10);
@@ -68,24 +76,33 @@ class TeacherController extends Controller
             'phone' => $request->phone,
             'address' => $request->address,
             'date_of_birth' => $request->date_of_birth,
-            'subject_id' => $request->subject_id,
+            'subject_id' => !empty($request->subject_ids) ? $request->subject_ids[0] : ($request->subject_id ?? null),
             'photo' => $request->photo
         ]);
 
-        Mail::to($user->email)->send(new AccountCreatedMail($user, $password));
+        $teacher->classes()->sync($request->class_ids ?? []);
+        $teacher->subjects()->sync($request->subject_ids ?? []);
 
-        return response()->json($teacher->load('user', 'subject'), 201);
+        try {
+            Mail::to($user->email)->send(new AccountCreatedMail($user, $password));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Failed to send account creation email to {$user->email}. Generated Password: {$password}. Error: " . $e->getMessage());
+        }
+
+        return response()->json($teacher->load('user', 'subject', 'classes', 'subjects'), 201);
     }
 
     public function show(Teacher $teacher)
     {
-        $teacher->load(['user', 'subject', 'notes']);
+        $teacher->load(['user', 'subject', 'notes', 'classes', 'subjects']);
         $payload = array_merge($teacher->toArray(), [
             'first_name' => $teacher->user->first_name,
             'last_name' => $teacher->user->last_name,
             'email' => $teacher->user->email,
             'cin' => $teacher->user->cin,
             'gender' => $teacher->user->gender,
+            'class_ids' => $teacher->classes->pluck('id')->toArray(),
+            'subject_ids' => $teacher->subjects->pluck('id')->toArray(),
         ]);
         return response()->json($payload);
     }
@@ -102,7 +119,11 @@ class TeacherController extends Controller
             'date_of_birth' => 'sometimes|required|date',
             'gender' => 'nullable|in:Male,Female',
             'subject_id' => 'nullable|exists:subjects,id',
-            'photo' => 'nullable|string'
+            'photo' => 'nullable|string',
+            'class_ids' => 'nullable|array',
+            'class_ids.*' => 'exists:classes,id',
+            'subject_ids' => 'nullable|array',
+            'subject_ids.*' => 'exists:subjects,id'
         ]);
 
         if ($request->has('first_name') || $request->has('last_name') || $request->has('email') || $request->has('password') || $request->has('cin') || $request->has('gender')) {
@@ -113,9 +134,23 @@ class TeacherController extends Controller
             $teacher->user->update($userData);
         }
 
-        $teacher->update($request->only('phone', 'address', 'date_of_birth', 'subject_id', 'photo'));
+        $teacherData = $request->only('phone', 'address', 'date_of_birth', 'photo');
+        if ($request->has('subject_ids')) {
+            $teacherData['subject_id'] = !empty($request->subject_ids) ? $request->subject_ids[0] : null;
+        } elseif ($request->has('subject_id')) {
+            $teacherData['subject_id'] = $request->subject_id;
+        }
 
-        return response()->json($teacher->load('user', 'subject'));
+        $teacher->update($teacherData);
+
+        if ($request->has('class_ids')) {
+            $teacher->classes()->sync($request->class_ids ?? []);
+        }
+        if ($request->has('subject_ids')) {
+            $teacher->subjects()->sync($request->subject_ids ?? []);
+        }
+
+        return response()->json($teacher->load('user', 'subject', 'classes', 'subjects'));
     }
 
     public function destroy(Teacher $teacher)
